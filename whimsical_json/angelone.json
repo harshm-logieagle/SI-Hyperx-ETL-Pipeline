@@ -2,7 +2,7 @@
     "id": 1,
     "outlet_id": 346970,
     "parent_id": 1,
-    "node_type": "extraction",
+    "node_type": "classification",
     "label": "root",
     "description": "Root",
     "is_active": 1,
@@ -21,10 +21,9 @@
                     "outlet_id": 346970,
                     "parent_id": 2,
                     "node_type": "extraction",
-                    "label": "F&O",
+                    "label": "FNO",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 11,
@@ -33,8 +32,7 @@
                     "node_type": "extraction",
                     "label": "Options",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 12,
@@ -43,8 +41,7 @@
                     "node_type": "extraction",
                     "label": "Derivatives",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 }
             ]
         },
@@ -64,8 +61,7 @@
                     "node_type": "extraction",
                     "label": "Commodity buy",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 14,
@@ -74,8 +70,7 @@
                     "node_type": "extraction",
                     "label": "Commodity sell",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 15,
@@ -84,8 +79,7 @@
                     "node_type": "extraction",
                     "label": "Algo trading",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 16,
@@ -94,8 +88,7 @@
                     "node_type": "extraction",
                     "label": "Gold",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 17,
@@ -104,8 +97,7 @@
                     "node_type": "extraction",
                     "label": "Silver",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 18,
@@ -114,8 +106,7 @@
                     "node_type": "extraction",
                     "label": "Crude Oil",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 19,
@@ -124,8 +115,7 @@
                     "node_type": "extraction",
                     "label": "Agri Commodity",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 }
             ]
         },
@@ -145,8 +135,7 @@
                     "node_type": "extraction",
                     "label": "Intraday Equity",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 21,
@@ -155,8 +144,7 @@
                     "node_type": "extraction",
                     "label": "Intraday",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 22,
@@ -165,8 +153,7 @@
                     "node_type": "extraction",
                     "label": "Buy",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 23,
@@ -175,8 +162,7 @@
                     "node_type": "extraction",
                     "label": "Sell",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 }
             ]
         },
@@ -194,10 +180,9 @@
                     "outlet_id": 346970,
                     "parent_id": 5,
                     "node_type": "extraction",
-                    "label": "F&O",
+                    "label": "FNO",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 25,
@@ -206,8 +191,7 @@
                     "node_type": "extraction",
                     "label": "Futures",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 }
             ]
         },
@@ -227,8 +211,7 @@
                     "node_type": "extraction",
                     "label": "Equity",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 }
             ]
         },
@@ -248,8 +231,7 @@
                     "node_type": "extraction",
                     "label": "Pay later",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 28,
@@ -258,8 +240,7 @@
                     "node_type": "extraction",
                     "label": "Margin Trading Facility",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 }
             ]
         },
@@ -279,8 +260,7 @@
                     "node_type": "extraction",
                     "label": "Order",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 30,
@@ -289,8 +269,7 @@
                     "node_type": "extraction",
                     "label": "Lot",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 31,
@@ -299,8 +278,7 @@
                     "node_type": "extraction",
                     "label": "NIFTY",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 32,
@@ -309,8 +287,7 @@
                     "node_type": "extraction",
                     "label": "Trading",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 33,
@@ -319,8 +296,7 @@
                     "node_type": "extraction",
                     "label": "Demat",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 34,
@@ -329,8 +305,7 @@
                     "node_type": "extraction",
                     "label": "Account opening",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 35,
@@ -339,8 +314,7 @@
                     "node_type": "extraction",
                     "label": "Mutual Funds",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 36,
@@ -349,8 +323,7 @@
                     "node_type": "extraction",
                     "label": "ETFs",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 37,
@@ -359,8 +332,7 @@
                     "node_type": "extraction",
                     "label": "Insurance",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 38,
@@ -369,8 +341,7 @@
                     "node_type": "extraction",
                     "label": "Loans and finance",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 },
                 {
                     "id": 39,
@@ -379,8 +350,7 @@
                     "node_type": "extraction",
                     "label": "Franchise and branch services",
                     "description": "",
-                    "is_active": 1,
-                    "children": []
+                    "is_active": 1
                 }
             ]
         },
@@ -391,8 +361,7 @@
             "node_type": "classification",
             "label": "No Products Were Mentioned",
             "description": "Support, onboarding, or exploratory conversations",
-            "is_active": 1,
-            "children": []
+            "is_active": 1
         }
     ]
 }

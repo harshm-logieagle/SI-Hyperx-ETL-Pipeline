@@ -1,24 +1,24 @@
 {
     "id": 1,
-    "outlet_id": "324777",
+    "outlet_id": 324777,
     "parent_id": null,
-    "node_type": "extraction",
+    "node_type": "classification",
     "label": "root",
     "description": "Root",
     "is_active": 1,
     "children": [
         {
             "id": 2,
-            "outlet_id": "324777",
+            "outlet_id": 324777,
             "parent_id": 1,
-            "node_type": "extraction",
+            "node_type": "classification",
             "label": "SUVs",
             "description": "",
             "is_active": 1,
             "children": [
                 {
                     "id": 8,
-                    "outlet_id": "324777",
+                    "outlet_id": 324777,
                     "parent_id": 2,
                     "node_type": "extraction",
                     "label": "Carens",
@@ -27,7 +27,7 @@
                     "children": [
                         {
                             "id": 10,
-                            "outlet_id": "324777",
+                            "outlet_id": 324777,
                             "parent_id": 8,
                             "node_type": "classification",
                             "label": "DMS",
@@ -36,7 +36,7 @@
                             "children": [
                                 {
                                     "id": 12,
-                                    "outlet_id": "324777",
+                                    "outlet_id": 324777,
                                     "parent_id": 10,
                                     "node_type": "classification",
                                     "label": "Competitor Mentioned",
@@ -45,7 +45,7 @@
                                     "children": [
                                         {
                                             "id": 16,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 12,
                                             "node_type": "classification",
                                             "label": "Yes",
@@ -54,7 +54,7 @@
                                             "children": [
                                                 {
                                                     "id": 18,
-                                                    "outlet_id": "324777",
+                                                    "outlet_id": 324777,
                                                     "parent_id": 16,
                                                     "node_type": "classification",
                                                     "label": "Send to DMS",
@@ -65,7 +65,7 @@
                                         },
                                         {
                                             "id": 17,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 12,
                                             "node_type": "classification",
                                             "label": "No",
@@ -76,7 +76,7 @@
                                 },
                                 {
                                     "id": 13,
-                                    "outlet_id": "324777",
+                                    "outlet_id": 324777,
                                     "parent_id": 10,
                                     "node_type": "classification",
                                     "label": "Timeline <60 days",
@@ -85,7 +85,7 @@
                                     "children": [
                                         {
                                             "id": 19,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 13,
                                             "node_type": "classification",
                                             "label": "Yes",
@@ -94,7 +94,7 @@
                                             "children": [
                                                 {
                                                     "id": 21,
-                                                    "outlet_id": "324777",
+                                                    "outlet_id": 324777,
                                                     "parent_id": 19,
                                                     "node_type": "classification",
                                                     "label": "Send to DMS",
@@ -105,7 +105,7 @@
                                         },
                                         {
                                             "id": 20,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 13,
                                             "node_type": "classification",
                                             "label": "No",
@@ -116,7 +116,7 @@
                                 },
                                 {
                                     "id": 14,
-                                    "outlet_id": "324777",
+                                    "outlet_id": 324777,
                                     "parent_id": 10,
                                     "node_type": "classification",
                                     "label": "Product query",
@@ -125,7 +125,7 @@
                                     "children": [
                                         {
                                             "id": 22,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 14,
                                             "node_type": "classification",
                                             "label": "Yes",
@@ -134,7 +134,7 @@
                                             "children": [
                                                 {
                                                     "id": 24,
-                                                    "outlet_id": "324777",
+                                                    "outlet_id": 324777,
                                                     "parent_id": 22,
                                                     "node_type": "classification",
                                                     "label": "Send to DMS",
@@ -145,7 +145,7 @@
                                         },
                                         {
                                             "id": 23,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 14,
                                             "node_type": "classification",
                                             "label": "No",
@@ -156,7 +156,7 @@
                                 },
                                 {
                                     "id": 15,
-                                    "outlet_id": "324777",
+                                    "outlet_id": 324777,
                                     "parent_id": 10,
                                     "node_type": "classification",
                                     "label": "Financing option enquired",
@@ -165,7 +165,7 @@
                                     "children": [
                                         {
                                             "id": 25,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 15,
                                             "node_type": "classification",
                                             "label": "Yes",
@@ -174,7 +174,7 @@
                                             "children": [
                                                 {
                                                     "id": 27,
-                                                    "outlet_id": "324777",
+                                                    "outlet_id": 324777,
                                                     "parent_id": 25,
                                                     "node_type": "classification",
                                                     "label": "Send to DMS",
@@ -185,7 +185,7 @@
                                         },
                                         {
                                             "id": 26,
-                                            "outlet_id": "324777",
+                                            "outlet_id": 324777,
                                             "parent_id": 15,
                                             "node_type": "classification",
                                             "label": "No",
@@ -198,7 +198,7 @@
                         },
                         {
                             "id": 11,
-                            "outlet_id": "324777",
+                            "outlet_id": 324777,
                             "parent_id": 8,
                             "node_type": "classification",
                             "label": "Not to be sent to DMS",
@@ -209,7 +209,7 @@
                 },
                 {
                     "id": 7,
-                    "outlet_id": "324777",
+                    "outlet_id": 324777,
                     "parent_id": 2,
                     "node_type": "extraction",
                     "label": "Seltos",
@@ -218,7 +218,7 @@
                 },
                 {
                     "id": 9,
-                    "outlet_id": "324777",
+                    "outlet_id": 324777,
                     "parent_id": 2,
                     "node_type": "extraction",
                     "label": "Carnival",
@@ -229,27 +229,27 @@
         },
         {
             "id": 3,
-            "outlet_id": "324777",
+            "outlet_id": 324777,
             "parent_id": 1,
-            "node_type": "extraction",
+            "node_type": "classification",
             "label": "Sub-Compact SUV",
             "description": "",
             "is_active": 1
         },
         {
             "id": 4,
-            "outlet_id": "324777",
+            "outlet_id": 324777,
             "parent_id": 1,
-            "node_type": "extraction",
+            "node_type": "classification",
             "label": "EV",
             "description": "",
             "is_active": 1
         },
         {
             "id": 5,
-            "outlet_id": "324777",
+            "outlet_id": 324777,
             "parent_id": 1,
-            "node_type": "extraction",
+            "node_type": "classification",
             "label": "Others",
             "description": "",
             "is_active": 1

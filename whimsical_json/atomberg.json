@@ -1,7 +1,7 @@
 {
     "id": 1,
     "parent_id": null,
-    "node_type": "extraction",
+    "node_type": "classification",
     "label": "root",
     "children": [
         {

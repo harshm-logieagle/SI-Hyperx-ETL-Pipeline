@@ -1,8 +1,8 @@
 {
     "id": 1,
-    "outlet_id": "132996",
+    "outlet_id": 132996,
     "parent_id": null,
-    "node_type": "extraction",
+    "node_type": "classification",
     "label": "root",
     "description": "Root",
     "is_active": 1,
@@ -29,7 +29,7 @@
                             "id": 20,
                             "outlet_id": 132996,
                             "parent_id": 6,
-                            "node_type": "extraction",
+                            "node_type": "classification",
                             "label": "Complaint",
                             "description": "",
                             "is_active": 1,
@@ -67,7 +67,7 @@
                             "id": 21,
                             "outlet_id": 132996,
                             "parent_id": 6,
-                            "node_type": "extraction",
+                            "node_type": "classification",
                             "label": "Enquiry",
                             "description": "",
                             "is_active": 1
@@ -76,7 +76,7 @@
                             "id": 22,
                             "outlet_id": 132996,
                             "parent_id": 6,
-                            "node_type": "extraction",
+                            "node_type": "classification",
                             "label": "Request",
                             "description": "",
                             "is_active": 1
