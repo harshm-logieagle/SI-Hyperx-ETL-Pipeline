@@ -1,0 +1,8 @@
+.venv
+.venv_
+transformations/
+__pycache__/
+
+profile.ovpn
+.env
+etl_pipeline/tree_structure_scripts

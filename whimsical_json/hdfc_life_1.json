@@ -1,0 +1,223 @@
+{
+    "id": 1,
+    "outlet_id": 4844,
+    "parent_id": null,
+    "node_type": "extraction",
+    "label": "root",
+    "description": "Root",
+    "is_active": 1,
+    "children": [
+        {
+            "id": 2,
+            "outlet_id": 4844,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Customer Compared Competitor",
+            "description": "Customer proactively mentioned or compared another insurer",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 10,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "ICICI Lombard",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 11,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "ACKO",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 12,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Star Health",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 13,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Care Insurance",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 14,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Niva Bupa",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 15,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Tata AIG",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 16,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "GoDigit",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 17,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Reliance General Insurance",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 18,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Others",
+                    "description": "Any competitor outside predefined list",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "outlet_id": 4844,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Agent Pitched Competitor",
+            "description": "Agent introduced or referenced a competitor",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 19,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "ICICI Lombard",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 20,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "ACKO",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 21,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Star Health",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 22,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Care Insurance",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 23,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Niva Bupa",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 24,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Tata AIG",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 25,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "GoDigit",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 26,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Reliance General Insurance",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 27,
+                    "outlet_id": 4844,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Others",
+                    "description": "Any competitor outside predefined list",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "outlet_id": 4844,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "No Competitor Mentioned",
+            "description": "Neither customer nor agent referenced any competitor",
+            "is_active": 1,
+            "children": []
+        }
+    ]
+}

@@ -1,0 +1,398 @@
+{
+    "id": 1,
+    "outlet_id": 346970,
+    "parent_id": 1,
+    "node_type": "extraction",
+    "label": "root",
+    "description": "Root",
+    "is_active": 1,
+    "children": [
+        {
+            "id": 2,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Options",
+            "description": "Advanced trading and derivatives discussions",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 10,
+                    "outlet_id": 346970,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "F&O",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 11,
+                    "outlet_id": 346970,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Options",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 12,
+                    "outlet_id": 346970,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Derivatives",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Commodity",
+            "description": "Commodity and non-equity exposure discussions",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 13,
+                    "outlet_id": 346970,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Commodity buy",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 14,
+                    "outlet_id": 346970,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Commodity sell",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 15,
+                    "outlet_id": 346970,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Algo trading",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 16,
+                    "outlet_id": 346970,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Gold",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 17,
+                    "outlet_id": 346970,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Silver",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 18,
+                    "outlet_id": 346970,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Crude Oil",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 19,
+                    "outlet_id": 346970,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "Agri Commodity",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Intraday",
+            "description": "Short-term, execution-focused trading intent",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 20,
+                    "outlet_id": 346970,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "Intraday Equity",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 21,
+                    "outlet_id": 346970,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "Intraday",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 22,
+                    "outlet_id": 346970,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "Buy",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 23,
+                    "outlet_id": 346970,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "Sell",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Futures",
+            "description": "Directional, leverage-based trading strategies",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 24,
+                    "outlet_id": 346970,
+                    "parent_id": 5,
+                    "node_type": "extraction",
+                    "label": "F&O",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 25,
+                    "outlet_id": 346970,
+                    "parent_id": 5,
+                    "node_type": "extraction",
+                    "label": "Futures",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Delivery",
+            "description": "Long-term investment discussions",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 26,
+                    "outlet_id": 346970,
+                    "parent_id": 6,
+                    "node_type": "extraction",
+                    "label": "Equity",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 7,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "MTF",
+            "description": "Margin and capital efficiency discussions",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 27,
+                    "outlet_id": 346970,
+                    "parent_id": 7,
+                    "node_type": "extraction",
+                    "label": "Pay later",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 28,
+                    "outlet_id": 346970,
+                    "parent_id": 7,
+                    "node_type": "extraction",
+                    "label": "Margin Trading Facility",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Others",
+            "description": "Ecosystem services and long-tail topics",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 29,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Order",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 30,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Lot",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 31,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "NIFTY",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 32,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Trading",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 33,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Demat",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 34,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Account opening",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 35,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Mutual Funds",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 36,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "ETFs",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 37,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Insurance",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 38,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Loans and finance",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                },
+                {
+                    "id": 39,
+                    "outlet_id": 346970,
+                    "parent_id": 8,
+                    "node_type": "extraction",
+                    "label": "Franchise and branch services",
+                    "description": "",
+                    "is_active": 1,
+                    "children": []
+                }
+            ]
+        },
+        {
+            "id": 9,
+            "outlet_id": 346970,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "No Products Were Mentioned",
+            "description": "Support, onboarding, or exploratory conversations",
+            "is_active": 1,
+            "children": []
+        }
+    ]
+}

@@ -1,0 +1,91 @@
+{
+    "id": 1,
+    "outlet_id": 4844,
+    "parent_id": null,
+    "node_type": "extraction",
+    "label": "root",
+    "description": "Root",
+    "is_active": 1,
+    "children": [
+        {
+            "id": 2,
+            "outlet_id": 4844,
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Enquiry",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 5,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Resolved",
+                    "description": "",
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 7,
+                            "outlet_id": 4844,
+                            "parent_id": 5,
+                            "node_type": "classification",
+                            "label": "Up-Selling/Cross-Selling",
+                            "description": "",
+                            "is_active": 1,
+                            "children": [
+                                {
+                                    "id": 8,
+                                    "outlet_id": 4844,
+                                    "parent_id": 7,
+                                    "node_type": "extraction",
+                                    "label": "product 1",
+                                    "description": "",
+                                    "is_active": 1,
+                                    "children": []
+                                },
+                                {
+                                    "id": 9,
+                                    "outlet_id": 4844,
+                                    "parent_id": 7,
+                                    "node_type": "extraction",
+                                    "label": "product 2",
+                                    "description": "",
+                                    "is_active": 1,
+                                    "children": []
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "id": 6,
+                    "outlet_id": 4844,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Not Resolved",
+                    "description": "",
+                    "is_active": 1
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "outlet_id": 4844,
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Sales",
+            "description": "",
+            "is_active": 1
+        },
+        {
+            "id": 4,
+            "outlet_id": 4844,
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Complaint",
+            "description": "",
+            "is_active": 1
+        }
+    ]
+}

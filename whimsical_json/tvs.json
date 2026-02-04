@@ -1,0 +1,239 @@
+{
+    "id": 1,
+    "outlet_id": "132996",
+    "parent_id": null,
+    "node_type": "extraction",
+    "label": "root",
+    "description": "Root",
+    "is_active": 1,
+    "children": [
+        {
+            "id": 2,
+            "outlet_id": 132996,
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Scooters",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 6,
+                    "outlet_id": 132996,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "TVS Ntorq 125",
+                    "description": "",
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 20,
+                            "outlet_id": 132996,
+                            "parent_id": 6,
+                            "node_type": "extraction",
+                            "label": "Complaint",
+                            "description": "",
+                            "is_active": 1,
+                            "children": [
+                                {
+                                    "id": 23,
+                                    "outlet_id": 132996,
+                                    "parent_id": 20,
+                                    "node_type": "extraction",
+                                    "label": "End of call status A",
+                                    "description": "",
+                                    "is_active": 1
+                                },
+                                {
+                                    "id": 24,
+                                    "outlet_id": 132996,
+                                    "parent_id": 20,
+                                    "node_type": "extraction",
+                                    "label": "End of call status B",
+                                    "description": "",
+                                    "is_active": 1
+                                },
+                                {
+                                    "id": 25,
+                                    "outlet_id": 132996,
+                                    "parent_id": 20,
+                                    "node_type": "extraction",
+                                    "label": "End of call status C",
+                                    "description": "",
+                                    "is_active": 1
+                                }
+                            ]
+                        },
+                        {
+                            "id": 21,
+                            "outlet_id": 132996,
+                            "parent_id": 6,
+                            "node_type": "extraction",
+                            "label": "Enquiry",
+                            "description": "",
+                            "is_active": 1
+                        },
+                        {
+                            "id": 22,
+                            "outlet_id": 132996,
+                            "parent_id": 6,
+                            "node_type": "extraction",
+                            "label": "Request",
+                            "description": "",
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 7,
+                    "outlet_id": 132996,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "TVS Jupiter 125",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 8,
+                    "outlet_id": 132996,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "TVS Zest 125",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 9,
+                    "outlet_id": 132996,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "TVS X",
+                    "description": "",
+                    "is_active": 1
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "outlet_id": 132996,
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Electric",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 10,
+                    "outlet_id": 132996,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "TVS iQube",
+                    "description": "",
+                    "is_active": 1
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "outlet_id": 132996,
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Premium Bikes",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 11,
+                    "outlet_id": 132996,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "TVS Ronin",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 12,
+                    "outlet_id": 132996,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "TVS Apache RTR 160",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 13,
+                    "outlet_id": 132996,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "TVS Apache RTR 180",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 14,
+                    "outlet_id": 132996,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "TVS Apache RTR 200",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 15,
+                    "outlet_id": 132996,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "TVS Apache RTR 310",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 16,
+                    "outlet_id": 132996,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "TVS Apache RTR RR 310",
+                    "description": "",
+                    "is_active": 1
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "outlet_id": 132996,
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Commuter Bikes",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 17,
+                    "outlet_id": 132996,
+                    "parent_id": 5,
+                    "node_type": "extraction",
+                    "label": "TVS Sport",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 18,
+                    "outlet_id": 132996,
+                    "parent_id": 5,
+                    "node_type": "extraction",
+                    "label": "TVS Radeon",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 19,
+                    "outlet_id": 132996,
+                    "parent_id": 5,
+                    "node_type": "extraction",
+                    "label": "TVS Star City Plus",
+                    "description": "",
+                    "is_active": 1
+                }
+            ]
+        }
+    ]
+}

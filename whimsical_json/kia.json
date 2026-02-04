@@ -1,0 +1,258 @@
+{
+    "id": 1,
+    "outlet_id": "324777",
+    "parent_id": null,
+    "node_type": "extraction",
+    "label": "root",
+    "description": "Root",
+    "is_active": 1,
+    "children": [
+        {
+            "id": 2,
+            "outlet_id": "324777",
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "SUVs",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 8,
+                    "outlet_id": "324777",
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Carens",
+                    "description": "",
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10,
+                            "outlet_id": "324777",
+                            "parent_id": 8,
+                            "node_type": "classification",
+                            "label": "DMS",
+                            "description": "",
+                            "is_active": 1,
+                            "children": [
+                                {
+                                    "id": 12,
+                                    "outlet_id": "324777",
+                                    "parent_id": 10,
+                                    "node_type": "classification",
+                                    "label": "Competitor Mentioned",
+                                    "description": "",
+                                    "is_active": 1,
+                                    "children": [
+                                        {
+                                            "id": 16,
+                                            "outlet_id": "324777",
+                                            "parent_id": 12,
+                                            "node_type": "classification",
+                                            "label": "Yes",
+                                            "description": "",
+                                            "is_active": 1,
+                                            "children": [
+                                                {
+                                                    "id": 18,
+                                                    "outlet_id": "324777",
+                                                    "parent_id": 16,
+                                                    "node_type": "classification",
+                                                    "label": "Send to DMS",
+                                                    "description": "",
+                                                    "is_active": 1
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "id": 17,
+                                            "outlet_id": "324777",
+                                            "parent_id": 12,
+                                            "node_type": "classification",
+                                            "label": "No",
+                                            "description": "",
+                                            "is_active": 1
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": 13,
+                                    "outlet_id": "324777",
+                                    "parent_id": 10,
+                                    "node_type": "classification",
+                                    "label": "Timeline <60 days",
+                                    "description": "",
+                                    "is_active": 1,
+                                    "children": [
+                                        {
+                                            "id": 19,
+                                            "outlet_id": "324777",
+                                            "parent_id": 13,
+                                            "node_type": "classification",
+                                            "label": "Yes",
+                                            "description": "",
+                                            "is_active": 1,
+                                            "children": [
+                                                {
+                                                    "id": 21,
+                                                    "outlet_id": "324777",
+                                                    "parent_id": 19,
+                                                    "node_type": "classification",
+                                                    "label": "Send to DMS",
+                                                    "description": "",
+                                                    "is_active": 1
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "id": 20,
+                                            "outlet_id": "324777",
+                                            "parent_id": 13,
+                                            "node_type": "classification",
+                                            "label": "No",
+                                            "description": "",
+                                            "is_active": 1
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": 14,
+                                    "outlet_id": "324777",
+                                    "parent_id": 10,
+                                    "node_type": "classification",
+                                    "label": "Product query",
+                                    "description": "",
+                                    "is_active": 1,
+                                    "children": [
+                                        {
+                                            "id": 22,
+                                            "outlet_id": "324777",
+                                            "parent_id": 14,
+                                            "node_type": "classification",
+                                            "label": "Yes",
+                                            "description": "",
+                                            "is_active": 1,
+                                            "children": [
+                                                {
+                                                    "id": 24,
+                                                    "outlet_id": "324777",
+                                                    "parent_id": 22,
+                                                    "node_type": "classification",
+                                                    "label": "Send to DMS",
+                                                    "description": "",
+                                                    "is_active": 1
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "id": 23,
+                                            "outlet_id": "324777",
+                                            "parent_id": 14,
+                                            "node_type": "classification",
+                                            "label": "No",
+                                            "description": "",
+                                            "is_active": 1
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": 15,
+                                    "outlet_id": "324777",
+                                    "parent_id": 10,
+                                    "node_type": "classification",
+                                    "label": "Financing option enquired",
+                                    "description": "",
+                                    "is_active": 1,
+                                    "children": [
+                                        {
+                                            "id": 25,
+                                            "outlet_id": "324777",
+                                            "parent_id": 15,
+                                            "node_type": "classification",
+                                            "label": "Yes",
+                                            "description": "",
+                                            "is_active": 1,
+                                            "children": [
+                                                {
+                                                    "id": 27,
+                                                    "outlet_id": "324777",
+                                                    "parent_id": 25,
+                                                    "node_type": "classification",
+                                                    "label": "Send to DMS",
+                                                    "description": "",
+                                                    "is_active": 1
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "id": 26,
+                                            "outlet_id": "324777",
+                                            "parent_id": 15,
+                                            "node_type": "classification",
+                                            "label": "No",
+                                            "description": "",
+                                            "is_active": 1
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "id": 11,
+                            "outlet_id": "324777",
+                            "parent_id": 8,
+                            "node_type": "classification",
+                            "label": "Not to be sent to DMS",
+                            "description": "",
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 7,
+                    "outlet_id": "324777",
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Seltos",
+                    "description": "",
+                    "is_active": 1
+                },
+                {
+                    "id": 9,
+                    "outlet_id": "324777",
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "Carnival",
+                    "description": "",
+                    "is_active": 1
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "outlet_id": "324777",
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Sub-Compact SUV",
+            "description": "",
+            "is_active": 1
+        },
+        {
+            "id": 4,
+            "outlet_id": "324777",
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "EV",
+            "description": "",
+            "is_active": 1
+        },
+        {
+            "id": 5,
+            "outlet_id": "324777",
+            "parent_id": 1,
+            "node_type": "extraction",
+            "label": "Others",
+            "description": "",
+            "is_active": 1
+        }
+    ]
+}
