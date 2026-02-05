@@ -667,6 +667,27 @@ CROSS JOIN JSON_TABLE(
 ) AS jt
 JOIN emotions_master em ON jt.emotion_name COLLATE utf8mb4_unicode_ci = em.name COLLATE utf8mb4_unicode_ci;
 
+-- 11. Decision Nodes
+CREATE TABLE IF NOT EXISTS decision_nodes (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	master_outlet_id INT,
+	parent_id INT DEFAULT NULL,
+	node_type ENUM('classification', 'extraction'),
+	label VARCHAR(100),
+	description TEXT,
+	is_active TINYINT,
+	CONSTRAINT fk_decision_nodes_mo_id
+		FOREIGN KEY (master_outlet_id)
+		REFERENCES brands(id)
+		ON DELETE CASCADE 
+		ON UPDATE CASCADE,
+	CONSTRAINT fk_decision_nodes_parent_id
+		FOREIGN KEY (parent_id)
+		REFERENCES decision_nodes(id)
+		ON DELETE CASCADE 
+		ON UPDATE CASCADE
+);
+
 
 
 truncate table call_analytics_emotions;
