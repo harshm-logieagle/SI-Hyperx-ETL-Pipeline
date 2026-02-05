@@ -688,6 +688,31 @@ CREATE TABLE IF NOT EXISTS decision_nodes (
 		ON UPDATE CASCADE
 );
 
+-- 12. Level Reasons
+create table level_reasons (
+	id INT auto_increment primary key,
+	master_outlet_id INT,
+	call_recording_id INT,
+	decision_node_id INT,
+	level VARCHAR(10),
+	value VARCHAR(250),
+	constraint fk_level_reasons_master_outlet_id
+	foreign key (master_outlet_id)
+	references brands(id)
+	on delete cascade
+	on update cascade,
+	constraint fk_level_reasons_call_recording_id
+	foreign key (call_recording_id)
+	references customer_call_recordings(id)
+	on delete cascade
+	on update cascade,
+	constraint fk_level_reasons_decision_node_id
+	foreign key (decision_node_id)
+	references decision_nodes(id)
+	on delete cascade
+	on update cascade
+);
+
 
 
 truncate table call_analytics_emotions;
