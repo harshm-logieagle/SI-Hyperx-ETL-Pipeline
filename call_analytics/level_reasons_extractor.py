@@ -451,8 +451,8 @@ def save_level_reasons(master_outlet_id, call_recording_id, reason_paths, workfl
         
         insert_query = """
             INSERT INTO level_reasons 
-            (master_outlet_id, call_recording_id, decision_node_id, path_id, level, value)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (master_outlet_id, call_recording_id, path_id, level, value)
+            VALUES (%s, %s, %s, %s, %s)
         """
         
         for path_entry in reason_paths:
@@ -468,7 +468,6 @@ def save_level_reasons(master_outlet_id, call_recording_id, reason_paths, workfl
                     data = (
                         master_outlet_id,
                         call_recording_id,
-                        match["id"],
                         path_id,
                         str(level),
                         label
@@ -794,5 +793,5 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    CALL_ID = 148
+    CALL_ID = 260
     main(CALL_ID)
