@@ -46,7 +46,7 @@ def insert_node(cursor, node, parent_db_id=None):
 
 def main():
     # Load JSON (inline or from file)
-    with open(r"D:\Harsh\Projects-Working\SingleInterface - HyperX\whimsical_json\atomberg.json", "r", encoding="utf-8") as f:
+    with open(r"D:\Harsh\Projects-Working\SingleInterface - HyperX\whimsical_json\tvs.json", "r", encoding="utf-8") as f:
         tree = json.load(f)
 
     try:

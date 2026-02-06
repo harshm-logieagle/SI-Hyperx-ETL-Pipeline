@@ -585,7 +585,7 @@ create table call_reasons (
 	id INT auto_increment primary key,
 	call_recording_analytics_id INT,
 	master_outlet_reason_id INT,
-	reason_verbatim VARCHAR(250),
+	reason_verbatim TEXT,
     CONSTRAINT fk_call_reasons_rec_analytics_id
         FOREIGN KEY (call_recording_analytics_id)
         REFERENCES call_recording_analytics(id)
@@ -715,6 +715,10 @@ create table level_reasons (
 
 
 
+set foreign_key_checks=0;
+truncate table product_hierarchy_raw;
+truncate table customer_call_record_logs_raw;
+truncate table call_recording_analytics_details_raw;
 truncate table call_analytics_emotions;
 truncate table call_product_mentions;
 truncate table call_reasons;
@@ -724,4 +728,5 @@ truncate table master_outlet_call_reasons;
 truncate table master_outlet_categories;
 truncate table master_outlet_products;
 truncate table outlets;
+truncate table outlets_raw;
 truncate table brands;
