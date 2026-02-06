@@ -165,41 +165,39 @@ OUTPUT REQUIREMENTS
 
 RESPONSE FORMAT
 <response_format>
-{{
-    "reason_type": "Complaint",
-    "reason_verbatim": "",
-    "reason": "",
-    "end_of_call_status": "",
-    "products_mentioned": [
-        {{
-            "product": "",
-            "product_sentiment": "",
-            "product_verbatim": "",
-            "tags": ["", ""]
-        }},
-        {{
-            "product": "",
-            "product_sentiment": "",
-            "product_verbatim": "",
-            "tags": ["", ""]
-        }}
-    ],
-    "overall_sentiment": "",
-    "emotions": [
-        {{
-            "emotion": "",
-            "emotion_verbatim": ""
-        }}
-    ],
-    "customer_type": "",
-    "customer_gender": "",
-    "summary": "",
-    "transcript": [
-        "agent: how can i help you today?",
-        "customer: i want to give my suit for alteration.",
-        "agent:..."
-    ]
-}}
+"reason_type": "Complaint",
+"reason_verbatim": "",
+"reason": "",
+"end_of_call_status": "",
+"products_mentioned": [
+    {
+        "product": "",
+        "product_sentiment": "",
+        "product_verbatim": "",
+        "tags": ["", ""]
+    },
+    {
+        "product": "",
+        "product_sentiment": "",
+        "product_verbatim": "",
+        "tags": ["", ""]
+    }
+],
+"overall_sentiment": "",
+"emotions": [
+    {
+        "emotion": "",
+        "emotion_verbatim": ""
+    }
+],
+"customer_type": "",
+"customer_gender": "",
+"summary": "",
+"transcript": [
+    "agent: how can i help you today?",
+    "customer: i want to give my suit for alteration.",
+    "agent:..."
+]
 </response_format>
 """
 
@@ -253,140 +251,17 @@ OUTPUT REQUIREMENTS
 - Each path must be internally consistent and hierarchically valid.
 
 OUTPUT FORMAT
-{{
+{
   "reason_paths": [
-    {{
+    {
       "path_id": 1,
       "node_path": [
-        {{ "level": 0, "label": "" }}
+        { "level": 0, "label": "" }
       ]
-    }}
+    }
   ]
-}}
+}
 """
-
-def get_product_list(master_outlet_id):
-    conn = None
-    try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        query = "SELECT name FROM master_outlet_products WHERE master_outlet_id = %s"
-        cursor.execute(query, (master_outlet_id,))
-        results = cursor.fetchall()
-        return [r[0] for r in results]
-    except Error as e:
-        print(f"Error fetching product list: {e}")
-        return []
-    finally:
-        if conn and conn.is_connected():
-            cursor.close()
-            conn.close()
-
-def get_reasons_by_type(master_outlet_id, reason_type):
-    conn = None
-    try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        query = "SELECT value FROM master_outlet_call_reasons WHERE master_outlet_id = %s AND type = %s"
-        cursor.execute(query, (master_outlet_id, reason_type))
-        results = cursor.fetchall()
-        return [r[0] for r in results]
-    except Error as e:
-        print(f"Error fetching reasons for {reason_type}: {e}")
-        return []
-    finally:
-        if conn and conn.is_connected():
-            cursor.close()
-            conn.close()
-
-def get_base_analytics(transcript, brand_name, product_list, complaint_reasons, enquiry_reasons, request_reasons, handled_list):
-    print("\n=== STEP: BASE ANALYTICS ANALYSIS ===")
-    user_prompt = BA_USER_PROMPT_TEMPLATE.format(
-        brand_name=brand_name,
-        transcript=transcript,
-        product_list=", ".join(product_list),
-        complaint_reasons=", ".join(complaint_reasons),
-        enquiry_reasons=", ".join(enquiry_reasons),
-        request_reasons=", ".join(request_reasons),
-        handled_list=", ".join(handled_list)
-    )
-    
-    try:
-        completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
-                {"role": "user", "content": user_prompt}
-            ],
-            response_format={"type": "json_object"},
-            max_completion_tokens=30000
-        )
-        return json.loads(completion.choices[0].message.content)
-    except Exception as e:
-        print(f"Base Analytics LLM Error: {e}")
-        return {}
-
-def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_analytics):
-    print("\n[Base Analytics to be stored in call_recording_analytics]")
-    print(json.dumps(base_analytics, indent=2))
-    
-    conn = None
-    try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        
-        transcript_text = "\n".join(base_analytics.get("transcript", []))
-        emotions_json = json.dumps(base_analytics.get("emotions", []))
-        products_json = json.dumps(base_analytics.get("products_mentioned", []))
-        
-        query = """
-            INSERT INTO call_recording_analytics 
-            (call_recording_id, master_outlet_id, outlet_id, reason_type, reason_verbatim, reason, 
-             end_of_call_status, overall_sentiment, customer_type, customer_gender, 
-             summary, transcript, emotions_json, products_mentioned_json)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-            reason_type=VALUES(reason_type),
-            reason_verbatim=VALUES(reason_verbatim),
-            reason=VALUES(reason),
-            end_of_call_status=VALUES(end_of_call_status),
-            overall_sentiment=VALUES(overall_sentiment),
-            customer_type=VALUES(customer_type),
-            customer_gender=VALUES(customer_gender),
-            summary=VALUES(summary),
-            transcript=VALUES(transcript),
-            emotions_json=VALUES(emotions_json),
-            products_mentioned_json=VALUES(products_mentioned_json)
-        """
-        
-        data = (
-            call_recording_id,
-            master_outlet_id,
-            outlet_id,
-            base_analytics.get("reason_type"),
-            base_analytics.get("reason_verbatim"),
-            base_analytics.get("reason"),
-            base_analytics.get("end_of_call_status"),
-            base_analytics.get("overall_sentiment"),
-            base_analytics.get("customer_type"),
-            base_analytics.get("customer_gender"),
-            base_analytics.get("summary"),
-            transcript_text,
-            emotions_json,
-            products_json
-        )
-        
-        cursor.execute(query, data)
-        conn.commit()
-        print("Successfully saved base analytics to call_recording_analytics table.")
-    except Error as e:
-        if conn: conn.rollback()
-        print(f"Error saving base analytics: {e}")
-    finally:
-        if conn and conn.is_connected():
-            cursor.close()
-            conn.close()
-
 
 def get_brand_id_by_name(brand_name):
     conn = None
@@ -428,7 +303,7 @@ def get_call_details(call_recording_id):
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         query = """
-            SELECT ccr.call_recording_url, b.brand_name, b.id as master_outlet_id, ccr.outlet_id
+            SELECT ccr.call_recording_url, b.brand_name, b.id as master_outlet_id 
             FROM customer_call_recordings AS ccr
             JOIN brands b ON b.id = ccr.master_outlet_id 
             WHERE ccr.id = %s
@@ -676,12 +551,11 @@ def validate_node_path(tree, node_path):
         current_children = match.get("children", [])
     return True
 
-def process_transcript_with_tree(transcript, base_analytics, workflow_tree):
+def process_transcript_with_tree(transcript, workflow_tree):
     pruned_tree = prune_tree(workflow_tree)
     root_label = pruned_tree["label"]
     user_prompt = USER_PROMPT_TEMPLATE.format(
         transcript=transcript,
-        base_analytics=json.dumps(base_analytics, indent=2),
         workflow_tree=json.dumps(pruned_tree, indent=2)
     )
     try:
@@ -708,26 +582,16 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree):
         print("LLM Processing Error:", e)
         return {"reason_paths": []}
 
-def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, product_list, complaint_reasons, enquiry_reasons, request_reasons, handled_list):
+def process_call(audio_path, brand_name, workflow_tree):
     print("\n=== STEP 1: TRANSCRIPTION ===")
     transcript = transcribe_audio(audio_path, brand_name)
-    
-    print("\n=== STEP 2: BASE ANALYTICS ===")
-    base_analytics = get_base_analytics(
-        transcript, brand_name, product_list, 
-        complaint_reasons, enquiry_reasons, 
-        request_reasons, handled_list
-    )
-    
-    print("\n=== STEP 3: TREE TRAVERSAL ANALYSIS ===")
+    print("\n=== STEP 2: TREE TRAVERSAL ANALYSIS ===")
     traversal_result = process_transcript_with_tree(
         transcript,
-        base_analytics,
         workflow_tree
     )
     return {
         "transcript": transcript,
-        "base_analytics": base_analytics,
         "reason_paths": traversal_result["reason_paths"]
     }
 
@@ -736,45 +600,19 @@ def main(call_recording_id):
     if not details:
         print(f"Error: Could not fetch details for Call ID {call_recording_id}")
         return
-    
     audio_path = details["call_recording_url"]
     brand_name = details["brand_name"]
     master_outlet_id = details["master_outlet_id"]
-    outlet_id = details["outlet_id"]
-    
     print(f"--- Processing Call ID: {call_recording_id} ({brand_name}) ---")
-    
-    product_list = get_product_list(master_outlet_id)
-    complaint_reasons = get_reasons_by_type(master_outlet_id, "Complaint")
-    enquiry_reasons = get_reasons_by_type(master_outlet_id, "Enquiry")
-    request_reasons = get_reasons_by_type(master_outlet_id, "Request")
-    handled_list = [
-        'Info Provided', 'Store Visit Confirmed', 'Issue Resolved',
-        'Call Dropped', 'Follow-up Required', 'Complaint Registered', 'Service Activated',
-        'Refund Processed', 'Payment Confirmed', 'Technical Assistance Provided',
-        'General Inquiry', 'Account Information Updated', 'No Action Needed'
-    ]
-    
     workflow_tree = fetch_decision_nodes_from_db(master_outlet_id)
     if not workflow_tree:
         print(f"Error: No decision nodes found for brand ID {master_outlet_id}")
         return
-        
     result = process_call(
         audio_path=audio_path,
         brand_name=brand_name,
-        master_outlet_id=master_outlet_id,
-        workflow_tree=workflow_tree,
-        product_list=product_list,
-        complaint_reasons=complaint_reasons,
-        enquiry_reasons=enquiry_reasons,
-        request_reasons=request_reasons,
-        handled_list=handled_list
+        workflow_tree=workflow_tree
     )
-    
-    if result.get("base_analytics"):
-        save_base_analytics(master_outlet_id, outlet_id, call_recording_id, result["base_analytics"])
-        
     if result.get("reason_paths"):
         save_level_reasons(
             master_outlet_id, 
@@ -782,16 +620,8 @@ def main(call_recording_id):
             result["reason_paths"], 
             workflow_tree
         )
-    
     print("\n--- Final Analysis Result ---")
-    summary_result = {
-        "call_recording_id": call_recording_id,
-        "brand": brand_name,
-        "base_analytics": result.get("base_analytics") if result.get("base_analytics") else {},
-        "reason_paths_count": len(result["reason_paths"]),
-        "reason_paths": result
-    }
-    print(json.dumps(summary_result, indent=2))
+    print(json.dumps(result, indent=2))
 
 if __name__ == "__main__":
     CALL_ID = 148
