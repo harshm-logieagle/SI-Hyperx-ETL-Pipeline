@@ -14,6 +14,37 @@ client = Groq(
     http_client=httpx.Client()
 )
 
+def levenshtein_distance(s1, s2):
+    m, n = len(s1), len(s2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+    for i in range(m + 1):
+        for j in range(n + 1):
+            if i == 0:
+                dp[i][j] = j
+            elif j == 0:
+                dp[i][j] = i
+            elif s1[i - 1] == s2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
+            else:
+                dp[i][j] = 1 + min(dp[i - 1][j],
+                                   dp[i][j - 1],
+                                   dp[i - 1][j - 1])
+    distance = dp[m][n]
+    return distance
+
+def closest_match(string_list, input_string):
+    print(f"Finding closest match for '{input_string}' in list of {len(string_list)} items")
+    if not string_list:
+        return input_string
+    if input_string in string_list:
+        print(f"Exact match found: {input_string}")
+        return input_string
+
+    closest_string = min(string_list, key=lambda s: levenshtein_distance(s, input_string))
+    print(f"Closest match: '{input_string}' -> '{closest_string}'")
+    return closest_string
+
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "user": os.getenv("DB_USER"),
@@ -321,63 +352,166 @@ def get_base_analytics(transcript, brand_name, product_list, complaint_reasons, 
             response_format={"type": "json_object"},
             max_completion_tokens=30000
         )
-        return json.loads(completion.choices[0].message.content)
+        result = json.loads(completion.choices[0].message.content)
+        
+        if "products_mentioned" in result and isinstance(result["products_mentioned"], list):
+            for product_data in result["products_mentioned"]:
+                original_name = product_data.get("product")
+                if original_name and product_list:
+                    matched_name = closest_match(product_list, original_name)
+                    product_data["product"] = matched_name
+        
+        return result
     except Exception as e:
         print(f"Base Analytics LLM Error: {e}")
         return {}
 
 def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_analytics):
     print("\n[Base Analytics to be stored in call_recording_analytics]")
-    print(json.dumps(base_analytics, indent=2))
     
     conn = None
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        transcript_text = "\n".join(base_analytics.get("transcript", []))
-        emotions_json = json.dumps(base_analytics.get("emotions", []))
-        products_json = json.dumps(base_analytics.get("products_mentioned", []))
+        # Prepare list fields
+        transcript_lines = base_analytics.get("transcript", [])
+        transcript_text = "\n".join(transcript_lines)
+        is_valid_transcript = 1 if transcript_lines else 0
         
+        emotions_data = base_analytics.get("emotions", [])
+        emotions_json = json.dumps(emotions_data)
+        emotions_list = [e.get("emotion", "") for e in emotions_data]
+        emotion_verbatims_list = [e.get("emotion_verbatim", "") for e in emotions_data]
+        emotions_str = "--||--".join(emotions_list)
+        emotion_verbatims_str = "--||--".join(emotion_verbatims_list)
+        
+        products_data = base_analytics.get("products_mentioned", [])
+        products_mentioned_json = json.dumps(products_data)
+        
+        # Product-related summary strings
+        product_names = []
+        product_sentiments = []
+        product_verbatims = []
+        product_tags = []
+        product_categories = []
+        
+        # Validated product context to be stored in call_product_mentions
+        valid_product_mentions = []
+
+        for p in products_data:
+            name = p.get("product")
+            if not name:
+                continue
+                
+            sentiment = (p.get("product_sentiment") or "").lower()
+            verbatim = p.get("product_verbatim", "")
+            tags = p.get("tags", [])
+            tags_str = ", ".join(tags) if isinstance(tags, list) else str(tags)
+            
+            product_names.append(name)
+            product_sentiments.append(sentiment)
+            product_verbatims.append(verbatim)
+            product_tags.append(tags_str)
+            
+            # Fetch Category and ID from DB
+            cursor.execute("""
+                SELECT p.id, c.category_name 
+                FROM master_outlet_products p
+                LEFT JOIN master_outlet_categories c ON p.category_id = c.id
+                WHERE p.master_outlet_id = %s AND p.name = %s
+            """, (master_outlet_id, name))
+            row = cursor.fetchone()
+            
+            if row:
+                prod_id, cat_name = row
+                cat_name = cat_name or ""
+                product_categories.append(cat_name)
+                valid_product_mentions.append({
+                    "prod_id": prod_id,
+                    "sentiment": sentiment,
+                    "verbatim": verbatim,
+                    "tags": tags_str
+                })
+            else:
+                product_categories.append("")
+
+        products_str = "--||--".join(product_names)
+        sentiments_str = "--||--".join(product_sentiments)
+        p_verbatims_str = "--||--".join(product_verbatims)
+        p_tags_str = "--||--".join(product_tags)
+        p_categories_str = "--||--".join(product_categories)
+
+        # Mapping to table columns
         query = """
             INSERT INTO call_recording_analytics 
-            (call_recording_id, master_outlet_id, outlet_id, reason_type, reason_verbatim, reason, 
-             end_of_call_status, overall_sentiment, customer_type, customer_gender, 
-             summary, transcript, emotions_json, products_mentioned_json)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (call_recording_id, master_outlet_id, outlet_id, reason, reason_verbatim, 
+             reason_type, end_of_call_status, overall_sentiment, brand_sentiment, 
+             customer_gender, customer_type, summary, transcript, audio_to_text, 
+             is_valid_transcript, emotions_json, emotions, emotion_verbatims, 
+             products_mentioned_json, products, product_sentiments, product_verbatims, 
+             product_tags, product_categories, created, modified)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
             ON DUPLICATE KEY UPDATE
-            reason_type=VALUES(reason_type),
-            reason_verbatim=VALUES(reason_verbatim),
             reason=VALUES(reason),
+            reason_verbatim=VALUES(reason_verbatim),
+            reason_type=VALUES(reason_type),
             end_of_call_status=VALUES(end_of_call_status),
             overall_sentiment=VALUES(overall_sentiment),
-            customer_type=VALUES(customer_type),
+            brand_sentiment=VALUES(brand_sentiment),
             customer_gender=VALUES(customer_gender),
+            customer_type=VALUES(customer_type),
             summary=VALUES(summary),
             transcript=VALUES(transcript),
+            audio_to_text=VALUES(audio_to_text),
+            is_valid_transcript=VALUES(is_valid_transcript),
             emotions_json=VALUES(emotions_json),
-            products_mentioned_json=VALUES(products_mentioned_json)
+            emotions=VALUES(emotions),
+            emotion_verbatims=VALUES(emotion_verbatims),
+            products_mentioned_json=VALUES(products_mentioned_json),
+            products=VALUES(products),
+            product_sentiments=VALUES(product_sentiments),
+            product_verbatims=VALUES(product_verbatims),
+            product_tags=VALUES(product_tags),
+            product_categories=VALUES(product_categories),
+            modified=NOW()
         """
         
         data = (
-            call_recording_id,
-            master_outlet_id,
-            outlet_id,
-            base_analytics.get("reason_type"),
-            base_analytics.get("reason_verbatim"),
-            base_analytics.get("reason"),
-            base_analytics.get("end_of_call_status"),
-            base_analytics.get("overall_sentiment"),
-            base_analytics.get("customer_type"),
-            base_analytics.get("customer_gender"),
-            base_analytics.get("summary"),
-            transcript_text,
-            emotions_json,
-            products_json
+            call_recording_id, master_outlet_id, outlet_id, 
+            base_analytics.get("reason"), base_analytics.get("reason_verbatim"),
+            base_analytics.get("reason_type"), base_analytics.get("end_of_call_status"),
+            base_analytics.get("overall_sentiment").lower(), base_analytics.get("overall_sentiment").lower(), # brand_sentiment
+            base_analytics.get("customer_gender"), base_analytics.get("customer_type"),
+            base_analytics.get("summary"), transcript_text, transcript_text, # transcript and audio_to_text
+            is_valid_transcript, emotions_json, emotions_str, emotion_verbatims_str,
+            products_mentioned_json, products_str, sentiments_str, p_verbatims_str,
+            p_tags_str, p_categories_str
         )
         
         cursor.execute(query, data)
         conn.commit()
+        
+        # Fetch analytics record ID
+        cursor.execute("SELECT id FROM call_recording_analytics WHERE call_recording_id = %s", (call_recording_id,))
+        analytics_result = cursor.fetchone()
+        
+        if analytics_result:
+            analytics_id = analytics_result[0]
+            cursor.execute("DELETE FROM call_product_mentions WHERE call_recording_analytics_id = %s", (analytics_id,))
+            
+            for m in valid_product_mentions:
+                mention_query = """
+                    INSERT INTO call_product_mentions 
+                    (call_recording_analytics_id, master_outlet_product_id, product_sentiment, product_verbatim, tags)
+                    VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(mention_query, (
+                    analytics_id, m["prod_id"], m["sentiment"], m["verbatim"], m["tags"]
+                ))
+            conn.commit()
+            print("Successfully saved product mentions to call_product_mentions table.")
+            
         print("Successfully saved base analytics to call_recording_analytics table.")
     except Error as e:
         if conn: conn.rollback()
@@ -458,25 +592,20 @@ def save_level_reasons(master_outlet_id, call_recording_id, reason_paths, workfl
         for path_entry in reason_paths:
             path_id = path_entry.get("path_id", 1)
             node_path = path_entry.get("node_path", [])
-            current_layer = workflow_tree.get("children", [])
             
             for step in node_path:
                 label = step["label"]
                 level = step["level"]
-                match = next((c for c in current_layer if c["label"] == label), None)
-                if match:
-                    data = (
-                        master_outlet_id,
-                        call_recording_id,
-                        path_id,
-                        str(level),
-                        label
-                    )
-                    cursor.execute(insert_query, data)
-                    current_layer = match.get("children", [])
-                else:
-                    print(f"Warning: Label '{label}' not found at level {level}")
-                    break
+                
+                data = (
+                    master_outlet_id,
+                    call_recording_id,
+                    path_id,
+                    str(level),
+                    label
+                )
+                cursor.execute(insert_query, data)
+                print(f"Saved: Level {level}, Label '{label}' for Path {path_id}")
         
         conn.commit()
         print("Successfully saved analysis results to level_reasons table.")
@@ -663,19 +792,60 @@ def remove_root_from_paths(reason_paths, root_label):
         })
     return cleaned_paths
 
-def validate_node_path(tree, node_path):
+def rectify_and_validate_node_path(tree, node_path, product_list):
     if not node_path:
-        return False
+        return None
+    
     current_children = tree.get("children", [])
+    rectified_path = []
+    
     for step in node_path:
         label = step.get("label")
+        level = step.get("level")
+        
         match = next((c for c in current_children if c["label"] == label), None)
-        if not match:
-            return False
-        current_children = match.get("children", [])
-    return True
+        
+        if not match and current_children:
+            all_labels_in_tree = [c["label"] for c in current_children]
+            
+            is_product_layer = any(c.get("node_type") == "Extraction" for c in current_children) or \
+                              any(c["label"] in product_list for c in current_children)
 
-def process_transcript_with_tree(transcript, base_analytics, workflow_tree):
+            if is_product_layer and product_list:
+                matched_label = closest_match(product_list, label)
+                
+                match = next((c for c in current_children if c["label"] == matched_label), None)
+                
+                if not match:
+                    template_match = next((c for c in current_children if c["label"] in product_list), None)
+                    if template_match:
+                        print(f"Using '{template_match['label']}' as template for product '{matched_label}'")
+                        label = matched_label
+                        match = template_match
+                    else:
+                        label = matched_label
+                        rectified_path.append({"level": level, "label": label})
+                        print(f"Product '{label}' accepted as untemplated product (Terminal)")
+                        return rectified_path
+                else:
+                    label = matched_label
+            else:
+                best_label = closest_match(all_labels_in_tree, label)
+                match = next((c for c in current_children if c["label"] == best_label), None)
+                if match:
+                    label = best_label
+
+        if not match:
+            if len(rectified_path) <= level:
+                return None
+            break
+
+        rectified_path.append({"level": level, "label": label})
+        current_children = match.get("children", [])
+        
+    return rectified_path
+
+def process_transcript_with_tree(transcript, base_analytics, workflow_tree, product_list):
     pruned_tree = prune_tree(workflow_tree)
     root_label = pruned_tree["label"]
     user_prompt = USER_PROMPT_TEMPLATE.format(
@@ -700,7 +870,10 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree):
         )
         valid_paths = []
         for path in cleaned_paths:
-            if validate_node_path(pruned_tree, path["node_path"]):
+            # Condition 2: Use closest_match and product_list for level extraction
+            rectified_path = rectify_and_validate_node_path(pruned_tree, path["node_path"], product_list)
+            if rectified_path:
+                path["node_path"] = rectified_path
                 valid_paths.append(path)
         return {"reason_paths": valid_paths}
     except Exception as e:
@@ -722,7 +895,8 @@ def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, produc
     traversal_result = process_transcript_with_tree(
         transcript,
         base_analytics,
-        workflow_tree
+        workflow_tree,
+        product_list
     )
     return {
         "transcript": transcript,
@@ -787,11 +961,11 @@ def main(call_recording_id):
         "call_recording_id": call_recording_id,
         "brand": brand_name,
         "base_analytics": result.get("base_analytics") if result.get("base_analytics") else {},
-        "reason_paths_count": len(result["reason_paths"]),
-        "reason_paths": result
+        "reason_paths": result.get("reason_paths") if result.get("reason_paths") else [],
+        "reason_paths_count": len(result.get("reason_paths")) if result.get("reason_paths") else 0
     }
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    CALL_ID = 260
+    CALL_ID = 266
     main(CALL_ID)
