@@ -4,6 +4,7 @@ import httpx
 import os
 import urllib.parse
 import mysql.connector
+import requests
 from mysql.connector import Error
 from dotenv import load_dotenv
 
@@ -44,6 +45,34 @@ def closest_match(string_list, input_string):
     closest_string = min(string_list, key=lambda s: levenshtein_distance(s, input_string))
     print(f"Closest match: '{input_string}' -> '{closest_string}'")
     return closest_string
+
+def detect_language(audio_url, state, timeout=180):
+    print(f"Detecting language for audio URL: {audio_url} with state: {state}")
+    if state and state != '':
+        url = 'https://language1-detection.singleinterface.com/detect-language-with-state'
+        payload = {
+            "url": audio_url,
+            "state": state
+        }
+    else:
+        url = 'https://language1-detection.singleinterface.com/detect-language'
+        payload = {
+            "url": audio_url
+        }
+
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    try:
+        print(f"Calling language detection API: {url}")
+        response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        response.raise_for_status()
+        result = response.json()
+        print(f"Language detection result: {result}")
+        return result.get('language', '')
+    except (requests.exceptions.Timeout, requests.exceptions.RequestException) as e:
+        print(f"Language detection failed: {str(e)}")
+        return ''
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
@@ -366,7 +395,7 @@ def get_base_analytics(transcript, brand_name, product_list, complaint_reasons, 
         print(f"Base Analytics LLM Error: {e}")
         return {}
 
-def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_analytics):
+def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_analytics, call_language=''):
     print("\n[Base Analytics to be stored in call_recording_analytics]")
     
     conn = None
@@ -450,8 +479,8 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
              customer_gender, customer_type, summary, transcript, audio_to_text, 
              is_valid_transcript, emotions_json, emotions, emotion_verbatims, 
              products_mentioned_json, products, product_sentiments, product_verbatims, 
-             product_tags, product_categories, created, modified)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+             product_tags, product_categories, call_language, created, modified)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
             ON DUPLICATE KEY UPDATE
             reason=VALUES(reason),
             reason_verbatim=VALUES(reason_verbatim),
@@ -474,6 +503,7 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             product_verbatims=VALUES(product_verbatims),
             product_tags=VALUES(product_tags),
             product_categories=VALUES(product_categories),
+            call_language=VALUES(call_language),
             modified=NOW()
         """
         
@@ -486,7 +516,7 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             base_analytics.get("summary"), transcript_text, transcript_text,
             is_valid_transcript, emotions_json, emotions_str, emotion_verbatims_str,
             products_mentioned_json, products_str, sentiments_str, p_verbatims_str,
-            p_tags_str, p_categories_str
+            p_tags_str, p_categories_str, call_language
         )
         
         cursor.execute(query, data)
@@ -562,9 +592,10 @@ def get_call_details(call_recording_id):
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         query = """
-            SELECT ccr.call_recording_url, b.brand_name, b.id as master_outlet_id, ccr.outlet_id
+            SELECT ccr.call_recording_url, b.brand_name, b.id as master_outlet_id, ccr.outlet_id, o.state
             FROM customer_call_recordings AS ccr
             JOIN brands b ON b.id = ccr.master_outlet_id 
+            LEFT JOIN outlets o ON o.id = ccr.outlet_id
             WHERE ccr.id = %s
         """
         cursor.execute(query, (call_recording_id,))
@@ -960,6 +991,8 @@ def main(call_recording_id):
     
     print(f"--- Processing Call ID: {call_recording_id} ({brand_name}) ---")
     
+    call_language = detect_language(audio_path, details.get("state", ""))
+    
     product_list = get_product_list(master_outlet_id)
     complaint_reasons = get_reasons_by_type(master_outlet_id, "Complaint")
     enquiry_reasons = get_reasons_by_type(master_outlet_id, "Enquiry")
@@ -989,7 +1022,7 @@ def main(call_recording_id):
     )
     
     if result.get("base_analytics"):
-        save_base_analytics(master_outlet_id, outlet_id, call_recording_id, result["base_analytics"])
+        save_base_analytics(master_outlet_id, outlet_id, call_recording_id, result["base_analytics"], call_language=call_language)
         
     if result.get("reason_paths"):
         save_level_reasons(
@@ -1010,5 +1043,5 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    CALL_ID = 270
+    CALL_ID = 271
     main(CALL_ID)

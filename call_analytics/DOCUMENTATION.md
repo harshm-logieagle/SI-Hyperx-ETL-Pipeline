@@ -10,8 +10,9 @@ The system is designed for high accuracy through fuzzy string matching, hierarch
 ## 1. System Architecture 
 
 The core processing follows a multi-step pipeline:
-1.  **Data Retrieval**: Fetches call details (URL, Brand, Outlet ID) and the brand-specific decision tree from the database.
-2.  **Transcription**: Uses `WHISPER-LARGE-V3` via Groq to convert the audio file into a text transcript.
+1.  **Data Retrieval**: Fetches call details (URL, Brand, Outlet ID) and the brand-specific decision tree from the database. It also retrieves the associated outlet's **state** for localized logic.
+2.  **Language Detection**: Calls a specialized internal API to detect the language of the call recording, using the outlet's state as optional context.
+3.  **Transcription**: Uses `WHISPER-LARGE-V3` via Groq to convert the audio file into a text transcript.
 3.  **Base Analytics**: Calls an LLM to perform initial high-level analysis, extracting reason types, overall sentiment, customer metadata, emotions, and mentioned products.
 4.  **Tree Traversal**: Analyzes the transcript against a hierarchical workflow tree to identify structured traversal paths (Level 0, Level 1, etc.).
 5.  **Validation & Rectification**: Uses Levenshtein distance to resolve transcription errors and ensures the extracted path is valid within the decision tree. It also uses "Product Templating" to allow products not explicitly in the tree to follow standard hierarchical structures.
