@@ -331,7 +331,6 @@ def get_reasons_by_type(master_outlet_id, reason_type):
             conn.close()
 
 def get_base_analytics(transcript, brand_name, product_list, complaint_reasons, enquiry_reasons, request_reasons, handled_list):
-    print("\n=== STEP: BASE ANALYTICS ANALYSIS ===")
     user_prompt = BA_USER_PROMPT_TEMPLATE.format(
         brand_name=brand_name,
         transcript=transcript,
@@ -884,7 +883,7 @@ def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, produc
     print("\n=== STEP 1: TRANSCRIPTION ===")
     transcript = transcribe_audio(audio_path, brand_name)
     
-    print("\n=== STEP 2: BASE ANALYTICS ===")
+    print("\n=== STEP 2: BASE ANALYTICS ANALYSIS ===")
     base_analytics = get_base_analytics(
         transcript, brand_name, product_list, 
         complaint_reasons, enquiry_reasons, 
