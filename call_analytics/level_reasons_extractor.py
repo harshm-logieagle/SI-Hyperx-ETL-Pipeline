@@ -272,7 +272,8 @@ Each node in the workflow tree has a `node_type`.
   - You may use base analytics as supporting context if needed.
 
 - If `node_type = "Extraction"`:
-  - The node label represents an entity already extracted from the transcript.
+  - The node label represents an entity or product already extracted from the transcript.
+  - You MUST include a traversal path for every product listed in the BASE ANALYTICS if it is supported by the transcript evidence.
   - Do NOT re-classify it.
   - Include it in the traversal path only if it is explicitly mentioned or supported by the transcript or base analytics.
 
@@ -375,7 +376,7 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
         
         # Prepare list fields
         transcript_lines = base_analytics.get("transcript", [])
-        transcript_text = "\n".join(transcript_lines)
+        transcript_text = json.dumps(transcript_lines)
         is_valid_transcript = 1 if transcript_lines else 0
         
         emotions_data = base_analytics.get("emotions", [])
@@ -480,9 +481,9 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             call_recording_id, master_outlet_id, outlet_id, 
             base_analytics.get("reason"), base_analytics.get("reason_verbatim"),
             base_analytics.get("reason_type"), base_analytics.get("end_of_call_status"),
-            base_analytics.get("overall_sentiment").lower(), base_analytics.get("overall_sentiment").lower(), # brand_sentiment
+            base_analytics.get("overall_sentiment").lower(), base_analytics.get("overall_sentiment").lower(),
             base_analytics.get("customer_gender"), base_analytics.get("customer_type"),
-            base_analytics.get("summary"), transcript_text, transcript_text, # transcript and audio_to_text
+            base_analytics.get("summary"), transcript_text, transcript_text,
             is_valid_transcript, emotions_json, emotions_str, emotion_verbatims_str,
             products_mentioned_json, products_str, sentiments_str, p_verbatims_str,
             p_tags_str, p_categories_str
@@ -863,17 +864,60 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
             max_completion_tokens=30000
         )
         raw_output = json.loads(completion.choices[0].message.content)
-        cleaned_paths = remove_root_from_paths(
-            raw_output.get("reason_paths", []),
-            root_label
-        )
+        reason_paths = raw_output.get("reason_paths", [])
+        
+        cleaned_paths = remove_root_from_paths(reason_paths, root_label)
         valid_paths = []
+        
         for path in cleaned_paths:
-            # Condition 2: Use closest_match and product_list for level extraction
             rectified_path = rectify_and_validate_node_path(pruned_tree, path["node_path"], product_list)
             if rectified_path:
                 path["node_path"] = rectified_path
                 valid_paths.append(path)
+
+        products_in_analytics = base_analytics.get("products_mentioned", [])
+        for prod_data in products_in_analytics:
+            prod_name = prod_data.get("product")
+            if not prod_name: continue
+            
+            found = False
+            for p in valid_paths:
+                if any(step.get("label") == prod_name for step in p["node_path"]):
+                    found = True
+                    break
+            
+            if not found:
+                current_children = pruned_tree.get("children", [])
+                for child in current_children:
+                    is_product_category = any(c.get("label") in product_list for c in child.get("children", []))
+                    
+                    if child.get("label") == prod_name:
+                        valid_paths.append({
+                            "path_id": len(valid_paths) + 1,
+                            "node_path": [{"level": 0, "label": prod_name}]
+                        })
+                        print(f"Backfilled path for product: {prod_name} at Level 0")
+                        break
+                    elif is_product_category:
+                        grand_children = child.get("children", [])
+                        match = next((gc for gc in grand_children if gc.get("label") == prod_name), None)
+                        if match:
+                            valid_paths.append({
+                                "path_id": len(valid_paths) + 1,
+                                "node_path": [{"level": 0, "label": child.get("label")}, {"level": 1, "label": prod_name}]
+                            })
+                            print(f"Backfilled path for product: {prod_name} at Level 1 under {child.get('label')}")
+                            break
+                        else:
+                            template = next((gc for gc in grand_children if gc.get("label") in product_list), None)
+                            if template:
+                                valid_paths.append({
+                                    "path_id": len(valid_paths) + 1,
+                                    "node_path": [{"level": 0, "label": child.get("label")}, {"level": 1, "label": prod_name}]
+                                })
+                                print(f"Backfilled templated path for product: {prod_name} under {child.get('label')}")
+                                break
+
         return {"reason_paths": valid_paths}
     except Exception as e:
         print("LLM Processing Error:", e)
@@ -966,5 +1010,5 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    CALL_ID = 266
+    CALL_ID = 270
     main(CALL_ID)
