@@ -1,0 +1,93 @@
+{
+    "id": 1,
+    "outlet_id": 1,
+    "parent_id": null,
+    "node_type": "classification",
+    "label": "root",
+    "description": "Root",
+    "is_active": 1,
+    "children": [
+        {
+            "id": 2,
+            "outlet_id": 1,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "In-Stock",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 5,
+                    "outlet_id": 1,
+                    "parent_id": 2,
+                    "node_type": "extraction",
+                    "label": "product",
+                    "description": "",
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 8,
+                            "outlet_id": 1,
+                            "parent_id": 5,
+                            "node_type": "extraction",
+                            "label": "End of call status",
+                            "description": "",
+                            "is_active": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "outlet_id": 1,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Out-of-Stock",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 6,
+                    "outlet_id": 1,
+                    "parent_id": 3,
+                    "node_type": "extraction",
+                    "label": "product",
+                    "description": "",
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 9,
+                            "outlet_id": 1,
+                            "parent_id": 6,
+                            "node_type": "extraction",
+                            "label": "End of call status",
+                            "description": "",
+                            "is_active": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "outlet_id": 1,
+            "parent_id": 1,
+            "node_type": "classification",
+            "label": "Others",
+            "description": "",
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 7,
+                    "outlet_id": 1,
+                    "parent_id": 4,
+                    "node_type": "extraction",
+                    "label": "End of call status",
+                    "description": "",
+                    "is_active": 1
+                }
+            ]
+        }
+    ]
+}

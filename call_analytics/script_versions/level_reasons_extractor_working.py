@@ -221,15 +221,6 @@ Provide a dialogue-style diarization of the call:
 - Preserve conversational flow.
 - Do not fabricate dialogue.
 
-END OF CALL STATUS HANDLING
-- VALID END OF CALL STATUSES
-  {handled_list}
-- Choose the END OF CALL STATUSES FROM THE GIVEN LIST ONLY.
-- If the workflow tree includes an end-of-call or call outcome node (name may not be matching):
-  - Populate it with the actual call ending status (e.g., resolved, dropped, follow-up required, transferred, etc.)
-    only if explicitly supported by transcript or base analytics.
-  - Do not infer or fabricate call outcomes.
-
 OUTPUT REQUIREMENTS
 - Output MUST be valid JSON.
 - Output MUST match the provided response format exactly.
@@ -332,16 +323,14 @@ Each node in the workflow tree has a node_type.
 2. Extraction Nodes
    - If node_type = "Extraction":
      - The node label represents an entity already extracted.
-     - Do NOT return generic labels such as "product", "product_category", or "End of call status".
-     - Replace the node label with the actual extracted value (e.g., the real product name, the real category name, or the actual end of call status).
+     - Do NOT return generic labels such as "product" or "product_category".
+     - Replace the node label with the actual extracted value (e.g., the real product name or the real category name).
      - You MUST include a traversal path for every extracted product present in BASE ANALYTICS if supported by transcript evidence.
      - Do NOT re-classify extracted entities.
 
 END OF CALL STATUS HANDLING
-- VALID END OF CALL STATUSES
-  {handled_list}
-- Choose the END OF CALL STATUSES FROM THE GIVEN LIST ONLY.
-- If the workflow tree includes an end-of-call or call outcome node (name may not be matching):
+
+- If the workflow tree includes an end-of-call or call outcome node:
   - Populate it with the actual call ending status (e.g., resolved, dropped, follow-up required, transferred, etc.)
     only if explicitly supported by transcript or base analytics.
   - Do not infer or fabricate call outcomes.
@@ -402,7 +391,7 @@ def get_product_list(master_outlet_id):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        query = "SELECT name FROM master_outlet_products WHERE master_outlet_id = %s"
+        query = "SELECT name FROM master_outlet_products WHERE master_outlet_id = %s LIMIT 200"
         cursor.execute(query, (master_outlet_id,))
         results = cursor.fetchall()
         return [r[0] for r in results]
@@ -452,7 +441,7 @@ def get_base_analytics(transcript, brand_name, master_outlet_id, product_list, c
     user_prompt = BA_USER_PROMPT_TEMPLATE.format(
         brand_name=brand_name,
         transcript=transcript,
-        product_list=", ".join(product_list[:50]),
+        product_list=", ".join(product_list),
         complaint_reasons=", ".join(complaint_reasons),
         enquiry_reasons=", ".join(enquiry_reasons),
         request_reasons=", ".join(request_reasons),
@@ -509,6 +498,7 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
         emotion_verbatims_str = "--||--".join(emotion_verbatims_list)
         
         products_data = base_analytics.get("products_mentioned", [])
+        # The JSON being saved will now include the category fields populated in get_base_analytics
         products_mentioned_json = json.dumps(products_data)
         
         # Product-related summary strings
@@ -874,8 +864,7 @@ def transcribe_audio(audio_path, brand_name):
             file=file_to_send,
             model="whisper-large-v3",
             response_format="verbose_json",
-            prompt=brand_name,
-            temperature=0.2
+            prompt=brand_name
         )
         return transcription.text
     except Exception as e:
@@ -909,7 +898,7 @@ def remove_root_from_paths(reason_paths, root_label):
         })
     return cleaned_paths
 
-def rectify_and_validate_node_path(tree, node_path, product_list, category_list, handled_list):
+def rectify_and_validate_node_path(tree, node_path, product_list, category_list):
     if not node_path:
         return None
     
@@ -929,15 +918,8 @@ def rectify_and_validate_node_path(tree, node_path, product_list, category_list,
                                any(c["label"] in product_list or c["label"] in ["product", "product_category", "category"] for c in current_children)
             
             is_category_layer = any(c["label"] in category_list or c["label"] in ["product_category", "category"] for c in current_children)
-            
-            is_status_layer = any(c["label"] == "End of call status" for c in current_children)
 
-            if is_status_layer and handled_list:
-                matched_label = closest_match(handled_list, label)
-                match = next((c for c in current_children if c["label"] == matched_label or c["label"] == "End of call status"), None)
-                if match:
-                    label = matched_label
-            elif is_category_layer and category_list:
+            if is_category_layer and category_list:
                 matched_label = closest_match(category_list, label)
                 match = next((c for c in current_children if c["label"] == matched_label or c["label"] in ["product_category", "category"]), None)
                 if match:
@@ -976,14 +958,13 @@ def rectify_and_validate_node_path(tree, node_path, product_list, category_list,
         
     return rectified_path
 
-def process_transcript_with_tree(transcript, base_analytics, workflow_tree, product_list, category_list, handled_list):
+def process_transcript_with_tree(transcript, base_analytics, workflow_tree, product_list, category_list):
     pruned_tree = prune_tree(workflow_tree)
     root_label = pruned_tree["label"]
     user_prompt = USER_PROMPT_TEMPLATE.format(
         transcript=transcript,
         base_analytics=json.dumps(base_analytics, indent=2),
-        workflow_tree=json.dumps(pruned_tree, indent=2),
-        handled_list=", ".join(handled_list)
+        workflow_tree=json.dumps(pruned_tree, indent=2)
     )
     try:
         completion = client.chat.completions.create(
@@ -1002,26 +983,19 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
         valid_paths = []
         
         for path in cleaned_paths:
-            rectified_path = rectify_and_validate_node_path(pruned_tree, path["node_path"], product_list, category_list, handled_list)
+            rectified_path = rectify_and_validate_node_path(pruned_tree, path["node_path"], product_list, category_list)
             if rectified_path:
+                # Post-process to ensure generic labels are replaced even if LLM failed to replace them
+                # Look for a specific product in the path to deduce the category
                 path_product = next((step["label"] for step in rectified_path if step["label"] in product_list), None)
                 if path_product:
+                    # Find category for this product from base_analytics
                     prod_info = next((p for p in base_analytics.get("products_mentioned", []) if p.get("product") == path_product), None)
                     if prod_info and prod_info.get("category"):
                         for step in rectified_path:
                             if step["label"] in ["product_category", "category"]:
                                 step["label"] = prod_info["category"]
                 
-                for step in rectified_path:
-                    if step["label"] == "End of call status":
-                        if path_product:
-                            prod_info = next((p for p in base_analytics.get("products_mentioned", []) if p.get("product") == path_product), None)
-                            if prod_info and prod_info.get("end_of_call_status"):
-                                step["label"] = prod_info["end_of_call_status"]
-                        
-                        if step["label"] == "End of call status":
-                            step["label"] = base_analytics.get("end_of_call_status", "Unsure")
-
                 path["node_path"] = rectified_path
                 valid_paths.append(path)
 
@@ -1037,6 +1011,7 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
             found = False
             for p in valid_paths:
                 has_product = any(step.get("label") == prod_name for step in p["node_path"])
+                # Also check if the path contains the reason_type
                 has_reason = any(step.get("label") == p_reason_type for step in p["node_path"]) if p_reason_type else True
                 if has_product and has_reason:
                     found = True
@@ -1045,9 +1020,11 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
             if not found:
                 current_children = pruned_tree.get("children", [])
                 for child in current_children:
+                    # Check if this child's label matches the detected category OR is a placeholder
                     is_cat_match = child.get("label") == p_category or child.get("label") in ["product_category", "category"]
                     
                     if is_cat_match:
+                        # Find the product node under this category
                         grand_children = child.get("children", [])
                         product_node = next((gc for gc in grand_children if gc.get("label") == prod_name or gc.get("label") == "product"), None)
                         
@@ -1056,12 +1033,8 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
                             if p_reason_type:
                                 new_path.append({"level": 2, "label": p_reason_type})
                                 reason_node = next((c for c in (product_node.get("children", []) if "children" in product_node else []) if c.get("label") == p_reason_type), None)
-                                
-                                if not reason_node:
-                                    pass
-
                                 if reason_node and p_end_status:
-                                    has_status_child = any(c.get("label") in ["End of call status", "outcome", "status"] for c in reason_node.get("children", []))
+                                    has_status_child = any(c.get("label") == "End of call status" for c in reason_node.get("children", []))
                                     if has_status_child:
                                         new_path.append({"level": 3, "label": p_end_status})
                             
@@ -1079,7 +1052,7 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
                             new_path.append({"level": 1, "label": p_reason_type})
                             reason_node = next((c for c in (child.get("children", []) if "children" in child else []) if c.get("label") == p_reason_type), None)
                             if reason_node and p_end_status:
-                                has_status_child = any(c.get("label") in ["End of call status", "outcome", "status"] for c in reason_node.get("children", []))
+                                has_status_child = any(c.get("label") == "End of call status" for c in reason_node.get("children", []))
                                 if has_status_child:
                                     new_path.append({"level": 2, "label": p_end_status})
                         
@@ -1113,8 +1086,7 @@ def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, produc
         base_analytics,
         workflow_tree,
         product_list,
-        category_list,
-        handled_list
+        category_list
     )
     return {
         "transcript": transcript,
@@ -1187,6 +1159,5 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    for i in range(1, 101):
-        # CALL_ID = 3
-        main(i)
+    CALL_ID = 284
+    main(CALL_ID)

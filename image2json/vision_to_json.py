@@ -127,7 +127,7 @@ def transform_to_json(description, api_key):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        image_path = r"D:\Harsh\Projects-Working\SingleInterface - HyperX\image2json\hdfc_life.png"
+        image_path = r"D:\Harsh\Projects-Working\SingleInterface - HyperX\image2json\sangeetha.png"
     else:
         image_path = sys.argv[1]
     
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     try:
         desc = get_vision_description(image_path, api_key)
         final_json = transform_to_json(desc, api_key)
-        with open("output.json", "w", encoding="utf-8") as f:
+        with open("output_sangeetha.json", "w", encoding="utf-8") as f:
             json.dump(final_json, f, indent=4)
         print(json.dumps(final_json, indent=4))
     except Exception as e:
