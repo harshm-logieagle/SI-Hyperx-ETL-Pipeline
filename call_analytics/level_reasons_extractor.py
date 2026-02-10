@@ -792,7 +792,7 @@ def save_level_reasons(master_outlet_id, call_recording_id, reason_paths, workfl
                     call_recording_id,
                     path_id,
                     str(level),
-                    label
+                    label.capitalize()
                 )
                 cursor.execute(insert_query, data)
                 print(f"Saved: Level {level}, Label '{label}' for Path {path_id}")
@@ -900,7 +900,124 @@ def fetch_decision_nodes_from_db(master_outlet_id):
             cursor.close()
             conn.close()
 
-def transcribe_audio(audio_path, brand_name):
+def remove_silence_from_audio_bytes(audio_bytes, filename, threshold=0.5, min_silence_len_ms=300, keep_silence_ms=100):
+    """
+    Remove silence from audio bytes using Silero VAD.
+    Returns processed audio bytes ready for transcription.
+    
+    Args:
+        audio_bytes: Raw audio file bytes
+        filename: Original filename (used to determine format)
+        threshold: VAD threshold (0.0-1.0)
+        min_silence_len_ms: Minimum silence duration to remove
+        keep_silence_ms: Silence padding to keep at boundaries
+        
+    Returns:
+        Tuple of (processed_audio_bytes, stats_dict)
+    """
+    try:
+        import librosa
+        import soundfile as sf
+        import torch
+        import numpy as np
+        import io
+        from tempfile import NamedTemporaryFile
+    except ImportError as e:
+        print(f"VAD libraries not available: {e}")
+        return audio_bytes, {"vad_applied": False}
+    
+    try:
+        print(f"[VAD] Processing audio to remove silence...")
+        
+        # Load Silero VAD model
+        model, utils = torch.hub.load(
+            repo_or_dir='snakers4/silero-vad',
+            model='silero_vad',
+            force_reload=False,
+            onnx=False,
+            trust_repo=True
+        )
+        get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks = utils
+        
+        # Write bytes to temporary file for librosa to read
+        with NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp_input:
+            tmp_input.write(audio_bytes)
+            tmp_input_path = tmp_input.name
+        
+        try:
+            # Load audio using librosa (supports MP3, WAV, FLAC, etc.)
+            sample_rate = 16000
+            audio_float32, _ = librosa.load(tmp_input_path, sr=sample_rate, mono=True)
+            
+            # Convert to torch tensor
+            wav = torch.from_numpy(audio_float32)
+            
+            # Get speech timestamps using Silero VAD
+            speech_timestamps = get_speech_timestamps(
+                wav,
+                model,
+                sampling_rate=sample_rate,
+                threshold=threshold,
+                min_silence_duration_ms=min_silence_len_ms,
+                min_speech_duration_ms=200,
+            )
+            
+            print(f"[VAD] Found {len(speech_timestamps)} speech segments")
+            
+            if not speech_timestamps:
+                print("[VAD] No speech detected, returning original audio")
+                return audio_bytes, {"vad_applied": False, "reason": "no_speech"}
+            
+            # Collect speech chunks with padding
+            keep_silence_samples = int(keep_silence_ms * sample_rate / 1000)
+            chunks = []
+            
+            for ts in speech_timestamps:
+                start = max(0, ts["start"] - keep_silence_samples)
+                end = min(len(wav), ts["end"] + keep_silence_samples)
+                chunks.append(wav[start:end])
+            
+            # Concatenate all speech segments
+            processed_wav = torch.cat(chunks, dim=0)
+            
+            # Calculate statistics
+            original_duration_ms = len(wav) / sample_rate * 1000
+            processed_duration_ms = len(processed_wav) / sample_rate * 1000
+            removed_duration_ms = original_duration_ms - processed_duration_ms
+            
+            print(f"[VAD] Original: {original_duration_ms:.0f}ms, Processed: {processed_duration_ms:.0f}ms")
+            print(f"[VAD] Removed {removed_duration_ms:.0f}ms ({removed_duration_ms/original_duration_ms*100:.1f}%) silence")
+            
+            # Convert to bytes using soundfile
+            with NamedTemporaryFile(delete=False, suffix='.wav') as tmp_output:
+                sf.write(tmp_output.name, processed_wav.numpy(), sample_rate)
+                tmp_output_path = tmp_output.name
+            
+            try:
+                with open(tmp_output_path, 'rb') as f:
+                    processed_bytes = f.read()
+            finally:
+                os.unlink(tmp_output_path)
+            
+            stats = {
+                "vad_applied": True,
+                "original_duration_ms": original_duration_ms,
+                "processed_duration_ms": processed_duration_ms,
+                "removed_duration_ms": removed_duration_ms,
+                "speech_segments": len(speech_timestamps)
+            }
+            
+            return processed_bytes, stats
+            
+        finally:
+            os.unlink(tmp_input_path)
+            
+    except Exception as e:
+        print(f"[VAD] Error during VAD processing: {e}")
+        print("[VAD] Falling back to original audio")
+        return audio_bytes, {"vad_applied": False, "error": str(e)}
+
+def transcribe_audio(audio_path, brand_name, apply_vad=True):
     print(f"Transcribing audio: {audio_path}")
     try:
         if audio_path.startswith(("http://", "https://")):
@@ -937,13 +1054,38 @@ def transcribe_audio(audio_path, brand_name):
                 valid_extensions = (".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")
                 if not filename.lower().endswith(valid_extensions):
                     filename += ".mp3"
-            file_to_send = (filename, audio_bytes)
         else:
             if not os.path.exists(audio_path):
                 raise FileNotFoundError(f"Audio file not found: {audio_path}")
             with open(audio_path, "rb") as f:
                 filename = os.path.basename(audio_path)
-                file_to_send = (filename, f.read())
+                audio_bytes = f.read()
+        
+        # Apply VAD preprocessing to remove silence
+        if apply_vad:
+            processed_bytes, vad_stats = remove_silence_from_audio_bytes(
+                audio_bytes, 
+                filename,
+                threshold=0.5,
+                min_silence_len_ms=300,
+                keep_silence_ms=100
+            )
+            
+            if vad_stats.get("vad_applied"):
+                # Use processed audio with silence removed
+                # Change filename to .wav since VAD outputs WAV format
+                filename_base = os.path.splitext(filename)[0]
+                filename = f"{filename_base}_vad.wav"
+                file_to_send = (filename, processed_bytes)
+                print(f"[VAD] Using VAD-processed audio for transcription")
+            else:
+                # VAD failed or not applied, use original
+                file_to_send = (filename, audio_bytes)
+                print(f"[VAD] Using original audio for transcription")
+        else:
+            file_to_send = (filename, audio_bytes)
+            print(f"[VAD] VAD disabled, using original audio")
+        
         transcription = client.audio.translations.create(
             file=file_to_send,
             model="whisper-large-v3",
@@ -1262,6 +1404,6 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    for i in range(1, 12):
+    for i in range(1, 501):
         CALL_ID = i
         main(CALL_ID)

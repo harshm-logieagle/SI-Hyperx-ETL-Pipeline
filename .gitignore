@@ -8,3 +8,6 @@ profile.ovpn
 etl_pipeline/tree_structure_scripts
 hyperx_2nd_fev.ipynb
 call_analytics/recordings/
+
+*.mp3
+*.wav

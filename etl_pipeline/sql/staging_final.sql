@@ -257,6 +257,16 @@ JOIN outlets_raw r
   and o.url_alias collate utf8mb4_unicode_ci = r.url_alias collate utf8mb4_unicode_ci
 SET o.outlet_raw_id = r.id;
 
+-- OR -- RAN FASTER THAN THE ABOVE
+
+create index idx_outlets_raw_eacs_id on outlets_raw(enterprise_actual_client_store_id);
+create index idx_outlets_eacs_id on outlets(enterprise_actual_client_store_id);
+
+UPDATE outlets o
+JOIN outlets_raw r
+  ON o.enterprise_actual_client_store_id = r.enterprise_actual_client_store_id
+SET o.outlet_raw_id = r.id;
+
 -- 2. Master Outlet Categories Table
 create table master_outlet_categories (
 	id INT auto_increment primary key,
@@ -696,6 +706,7 @@ create table level_reasons (
 	id INT auto_increment primary key,
 	master_outlet_id INT,
 	call_recording_id INT,
+    path_id INT,
 	level VARCHAR(10),
 	value VARCHAR(250),
 	constraint fk_level_reasons_master_outlet_id
@@ -713,6 +724,8 @@ create table level_reasons (
 
 
 set foreign_key_checks=0;
+truncate table decision_nodes;
+truncate table level_reasons;
 truncate table product_hierarchy_raw;
 truncate table customer_call_record_logs_raw;
 truncate table call_recording_analytics_details_raw;
