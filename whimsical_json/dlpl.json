@@ -1,0 +1,608 @@
+{
+    "id": 10000,
+    "outlet_id": 1,
+    "parent_id": null,
+    "node_type": "classification",
+    "label": "ROOT",
+    "description": null,
+    "is_active": 1,
+    "children": [
+        {
+            "id": 10001,
+            "outlet_id": 1,
+            "parent_id": 10000,
+            "node_type": "classification",
+            "label": "ENQUIRY",
+            "description": null,
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 10004,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Pricing of Test",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10005,
+                            "outlet_id": 1,
+                            "parent_id": 10004,
+                            "node_type": "classification",
+                            "label": "Pricing Was Provided",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10006,
+                            "outlet_id": 1,
+                            "parent_id": 10004,
+                            "node_type": "classification",
+                            "label": "Pricing Was NOT Provided",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10007,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Competitor Mentioned",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10008,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Metropolis Healthcare",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10009,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Redcliffe Labs",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10010,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Apollo Diagnostics",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10011,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Healthians",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10012,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Max Lab",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10013,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Agilus Diagnostic (SRL Diagnostics)",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10014,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Thyrocare Technologies",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10015,
+                            "outlet_id": 1,
+                            "parent_id": 10007,
+                            "node_type": "classification",
+                            "label": "Others",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10016,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Report Availability",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10017,
+                            "outlet_id": 1,
+                            "parent_id": 10016,
+                            "node_type": "classification",
+                            "label": "Completely Available",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10018,
+                            "outlet_id": 1,
+                            "parent_id": 10016,
+                            "node_type": "classification",
+                            "label": "Partially Available",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10019,
+                            "outlet_id": 1,
+                            "parent_id": 10016,
+                            "node_type": "classification",
+                            "label": "Not Ready Yet",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10020,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Accuracy of Test",
+                    "description": null,
+                    "is_active": 1
+                },
+                {
+                    "id": 10021,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Store Contact Info",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10022,
+                            "outlet_id": 1,
+                            "parent_id": 10021,
+                            "node_type": "classification",
+                            "label": "Info Provided",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10023,
+                            "outlet_id": 1,
+                            "parent_id": 10021,
+                            "node_type": "classification",
+                            "label": "Info NOT Provided",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10024,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Packages",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10025,
+                            "outlet_id": 1,
+                            "parent_id": 10024,
+                            "node_type": "classification",
+                            "label": "Diabetic Test Package",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10026,
+                            "outlet_id": 1,
+                            "parent_id": 10024,
+                            "node_type": "classification",
+                            "label": "Full Body Package",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10027,
+                            "outlet_id": 1,
+                            "parent_id": 10024,
+                            "node_type": "classification",
+                            "label": "Swasthfit Vitamin Package",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10028,
+                            "outlet_id": 1,
+                            "parent_id": 10024,
+                            "node_type": "classification",
+                            "label": "Swasthfit Complete Health Check",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10029,
+                            "outlet_id": 1,
+                            "parent_id": 10024,
+                            "node_type": "classification",
+                            "label": "Cholesterol / Lipid Package",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10030,
+                            "outlet_id": 1,
+                            "parent_id": 10024,
+                            "node_type": "classification",
+                            "label": "Packages - Others",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10031,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Discount",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10032,
+                            "outlet_id": 1,
+                            "parent_id": 10031,
+                            "node_type": "classification",
+                            "label": "Information is Provided",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10033,
+                            "outlet_id": 1,
+                            "parent_id": 10031,
+                            "node_type": "classification",
+                            "label": "Information NOT Provided",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10034,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Test Details",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10035,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Complete Blood Count",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10036,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Blood Sugar Tests",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10037,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Liver Function Test",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10038,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Thyroid Function Test",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10039,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Kidney Function Tests",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10040,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Urine Routine",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10041,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Covid",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10042,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Dengue",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10043,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Flu (fever, malaria, scrub typhus, typhoid, brucellosis, influenza, leptospirosis, dengue)",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10044,
+                            "outlet_id": 1,
+                            "parent_id": 10034,
+                            "node_type": "classification",
+                            "label": "Test Details - Others",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10045,
+                    "outlet_id": 1,
+                    "parent_id": 10001,
+                    "node_type": "classification",
+                    "label": "Store Visit Confirmed",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10046,
+                            "outlet_id": 1,
+                            "parent_id": 10045,
+                            "node_type": "classification",
+                            "label": "Yes",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10047,
+                            "outlet_id": 1,
+                            "parent_id": 10045,
+                            "node_type": "classification",
+                            "label": "No",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": 10002,
+            "outlet_id": 1,
+            "parent_id": 10000,
+            "node_type": "classification",
+            "label": "SUPPORT",
+            "description": null,
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 10048,
+                    "outlet_id": 1,
+                    "parent_id": 10002,
+                    "node_type": "classification",
+                    "label": "Location / Direction",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10049,
+                            "outlet_id": 1,
+                            "parent_id": 10048,
+                            "node_type": "classification",
+                            "label": "Info Provided",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10050,
+                            "outlet_id": 1,
+                            "parent_id": 10048,
+                            "node_type": "classification",
+                            "label": "Info NOT Provided",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10051,
+                    "outlet_id": 1,
+                    "parent_id": 10002,
+                    "node_type": "classification",
+                    "label": "Home Collection",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10052,
+                            "outlet_id": 1,
+                            "parent_id": 10051,
+                            "node_type": "classification",
+                            "label": "Is Provided by the center",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10053,
+                            "outlet_id": 1,
+                            "parent_id": 10051,
+                            "node_type": "classification",
+                            "label": "Is not provided by the center",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10054,
+                            "outlet_id": 1,
+                            "parent_id": 10051,
+                            "node_type": "classification",
+                            "label": "Customer Outside Serviceable Area",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10055,
+                    "outlet_id": 1,
+                    "parent_id": 10002,
+                    "node_type": "classification",
+                    "label": "Appointment",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10056,
+                            "outlet_id": 1,
+                            "parent_id": 10055,
+                            "node_type": "classification",
+                            "label": "Details Captured",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10057,
+                            "outlet_id": 1,
+                            "parent_id": 10055,
+                            "node_type": "classification",
+                            "label": "Details NOT Captured",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                },
+                {
+                    "id": 10058,
+                    "outlet_id": 1,
+                    "parent_id": 10002,
+                    "node_type": "classification",
+                    "label": "Business Hours",
+                    "description": null,
+                    "is_active": 1,
+                    "children": [
+                        {
+                            "id": 10059,
+                            "outlet_id": 1,
+                            "parent_id": 10058,
+                            "node_type": "classification",
+                            "label": "Communicated",
+                            "description": null,
+                            "is_active": 1
+                        },
+                        {
+                            "id": 10060,
+                            "outlet_id": 1,
+                            "parent_id": 10058,
+                            "node_type": "classification",
+                            "label": "Not Communicated",
+                            "description": null,
+                            "is_active": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": 10003,
+            "outlet_id": 1,
+            "parent_id": 10000,
+            "node_type": "classification",
+            "label": "COMPLAINTS",
+            "description": null,
+            "is_active": 1,
+            "children": [
+                {
+                    "id": 10061,
+                    "outlet_id": 1,
+                    "parent_id": 10003,
+                    "node_type": "classification",
+                    "label": "Language Issues",
+                    "description": null,
+                    "is_active": 1
+                },
+                {
+                    "id": 10062,
+                    "outlet_id": 1,
+                    "parent_id": 10003,
+                    "node_type": "classification",
+                    "label": "Report Accuracy",
+                    "description": null,
+                    "is_active": 1
+                },
+                {
+                    "id": 10063,
+                    "outlet_id": 1,
+                    "parent_id": 10003,
+                    "node_type": "classification",
+                    "label": "Report TAT",
+                    "description": null,
+                    "is_active": 1
+                }
+            ]
+        }
+    ]
+}

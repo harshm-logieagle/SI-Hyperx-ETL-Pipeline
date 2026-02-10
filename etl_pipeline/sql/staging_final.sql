@@ -252,6 +252,9 @@ WHERE c.outlet_type IN ('retail','enterprise');
 UPDATE outlets o
 JOIN outlets_raw r
   ON o.business_name collate utf8mb4_unicode_ci = r.business_name collate utf8mb4_unicode_ci 
+  and o.address collate utf8mb4_unicode_ci = r.address collate utf8mb4_unicode_ci
+  and o.landmark collate utf8mb4_unicode_ci = r.landmark collate utf8mb4_unicode_ci
+  and o.url_alias collate utf8mb4_unicode_ci = r.url_alias collate utf8mb4_unicode_ci
 SET o.outlet_raw_id = r.id;
 
 -- 2. Master Outlet Categories Table

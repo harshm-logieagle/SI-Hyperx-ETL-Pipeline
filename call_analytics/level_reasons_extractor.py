@@ -396,6 +396,28 @@ def get_product_details(master_outlet_id, product_name):
             cursor.close()
             conn.close()
 
+def get_reason_id_from_db(master_outlet_id, reason_text):
+    """
+    Fetches the ID for a specific call reason.
+    """
+    if not reason_text:
+        return None
+    conn = None
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        query = "SELECT id FROM master_outlet_call_reasons WHERE master_outlet_id = %s AND value = %s LIMIT 1"
+        cursor.execute(query, (master_outlet_id, reason_text))
+        result = cursor.fetchone()
+        return result[0] if result else None
+    except Error as e:
+        print(f"Error fetching reason ID: {e}")
+        return None
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
 
 def get_product_list(master_outlet_id):
     conn = None
@@ -467,7 +489,8 @@ def get_base_analytics(transcript, brand_name, master_outlet_id, product_list, c
                 {"role": "user", "content": user_prompt}
             ],
             response_format={"type": "json_object"},
-            max_completion_tokens=30000
+            max_completion_tokens=30000,
+            temperature=0.1
         )
         result = json.loads(completion.choices[0].message.content)
         
@@ -482,13 +505,30 @@ def get_base_analytics(transcript, brand_name, master_outlet_id, product_list, c
                     details = get_product_details(master_outlet_id, matched_name)
                     product_data["category"] = details["category"]
                     product_data["product_id"] = details["id"]
+                
+                # Enrich Product Reason ID
+                p_reason = product_data.get("reason")
+                if p_reason:
+                    p_reason_type = product_data.get("reason_type")
+                    all_reasons = complaint_reasons + enquiry_reasons + request_reasons
+                    matched_p_reason = closest_match(all_reasons, p_reason)
+                    product_data["reason"] = matched_p_reason
+                    product_data["reason_id"] = get_reason_id_from_db(master_outlet_id, matched_p_reason)
+
+        # Enrich Main Reason ID
+        main_reason = result.get("reason")
+        if main_reason:
+            all_reasons = complaint_reasons + enquiry_reasons + request_reasons
+            matched_main_reason = closest_match(all_reasons, main_reason)
+            result["reason"] = matched_main_reason
+            result["reason_id"] = get_reason_id_from_db(master_outlet_id, matched_main_reason)
         
         return result
     except Exception as e:
         print(f"Base Analytics LLM Error: {e}")
         return {}
 
-def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_analytics, call_language=''):
+def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_analytics, raw_transcript, call_language=''):
     print("\n[Base Analytics to be stored in call_recording_analytics]")
     
     conn = None
@@ -520,6 +560,17 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
         
         # Validated product context to be stored in call_product_mentions
         valid_product_mentions = []
+        
+        # Validated reason context to be stored in call_reasons
+        valid_call_reasons = []
+
+        # Add main reason if exists
+        main_reason_id = base_analytics.get("reason_id")
+        if main_reason_id:
+            valid_call_reasons.append({
+                "reason_id": main_reason_id,
+                "verbatim": base_analytics.get("reason_verbatim", "")
+            })
 
         for p in products_data:
             name = p.get("product")
@@ -548,6 +599,15 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
                     "verbatim": verbatim,
                     "tags": tags_str
                 })
+            
+            # Add product specific reason if unique and has ID
+            p_reason_id = p.get("reason_id")
+            if p_reason_id:
+                if not any(r["reason_id"] == p_reason_id for r in valid_call_reasons):
+                    valid_call_reasons.append({
+                        "reason_id": p_reason_id,
+                        "verbatim": "" # Verbatim not available for product-level reasons in current structure
+                    })
 
         products_str = "--||--".join(product_names)
         sentiments_str = "--||--".join(product_sentiments)
@@ -598,7 +658,7 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             base_analytics.get("overall_sentiment").lower() if base_analytics.get("overall_sentiment") else "neutral", 
             base_analytics.get("overall_sentiment").lower() if base_analytics.get("overall_sentiment") else "neutral",
             base_analytics.get("customer_gender"), base_analytics.get("customer_type"),
-            base_analytics.get("summary"), transcript_text, transcript_text,
+            base_analytics.get("summary"), transcript_text, raw_transcript,
             is_valid_transcript, emotions_json, emotions_str, emotion_verbatims_str,
             products_mentioned_json, products_str, sentiments_str, p_verbatims_str,
             p_tags_str, p_categories_str, call_language
@@ -626,6 +686,20 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
                 ))
             conn.commit()
             print("Successfully saved product mentions to call_product_mentions table.")
+            
+            # Save call reasons
+            cursor.execute("DELETE FROM call_reasons WHERE call_recording_analytics_id = %s", (analytics_id,))
+            for r in valid_call_reasons:
+                reason_query = """
+                    INSERT INTO call_reasons 
+                    (call_recording_analytics_id, master_outlet_reason_id, reason_verbatim)
+                    VALUES (%s, %s, %s)
+                """
+                cursor.execute(reason_query, (
+                    analytics_id, r["reason_id"], r["verbatim"]
+                ))
+            conn.commit()
+            print("Successfully saved reasons to call_reasons table.")
             
         print("Successfully saved base analytics to call_recording_analytics table.")
     except Error as e:
@@ -993,7 +1067,8 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
                 {"role": "user", "content": user_prompt}
             ],
             response_format={"type": "json_object"},
-            max_completion_tokens=30000
+            max_completion_tokens=30000,
+            temperature=0.1
         )
         raw_output = json.loads(completion.choices[0].message.content)
         reason_paths = raw_output.get("reason_paths", [])
@@ -1166,7 +1241,7 @@ def main(call_recording_id):
     )
     
     if result.get("base_analytics"):
-        save_base_analytics(master_outlet_id, outlet_id, call_recording_id, result["base_analytics"], call_language=call_language)
+        save_base_analytics(master_outlet_id, outlet_id, call_recording_id, result["base_analytics"], result["transcript"], call_language=call_language)
         
     if result.get("reason_paths"):
         save_level_reasons(
@@ -1187,6 +1262,6 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    for i in range(1, 101):
-        # CALL_ID = 3
-        main(i)
+    for i in range(1, 12):
+        CALL_ID = i
+        main(CALL_ID)
