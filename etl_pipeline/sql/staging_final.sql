@@ -213,7 +213,7 @@ INSERT INTO outlets (
     add_website_to_webmaster, can_use_one_page_css, fetch_css_from_client_domain, services, amp_analytic_account, hastag, external_links, 
     is_website_hosted_on_client_side, client_api_auth_key, is_company_retail_store, ifsc_code, weekly_off, url_alias_backup, outlet_logo_url, outlet_fav_icon_url, 
     outlet_cover_photo_url, master_page_theme, menu_category_name, menu_category_id, menu_category_alias, custom_state, custom_state_alias, custom_city, custom_city_alias, 
-    custom_locality, api_client_id, api_custom_name, api_phone_number, location_group
+    custom_locality, api_client_id, api_custom_name, api_phone_number, location_group, outlet_raw_id
 )
 SELECT
     b.id AS master_outlet_id,
@@ -239,7 +239,7 @@ SELECT
     c.amp_analytic_account, c.hastag, c.external_links, c.is_website_hosted_on_client_side, c.client_api_auth_key, c.is_company_retail_store, c.ifsc_code, 
     c.weekly_off, c.url_alias_backup, c.outlet_logo_url, c.outlet_fav_icon_url, c.outlet_cover_photo_url, c.master_page_theme, c.menu_category_name, c.menu_category_id, 
     c.menu_category_alias, c.custom_state, c.custom_state_alias, c.custom_city, c.custom_city_alias, c.custom_locality, c.api_client_id, c.api_custom_name, 
-    c.api_phone_number, c.location_group
+    c.api_phone_number, c.location_group, c.id
 FROM outlets_raw c
 JOIN outlets_raw m
     ON c.parent_id = m.id
@@ -248,26 +248,6 @@ JOIN brands b
     ON b.brand_name COLLATE utf8mb4_unicode_ci
      = m.brand_name COLLATE utf8mb4_unicode_ci
 WHERE c.outlet_type IN ('retail','enterprise');
-
--- Too complex for enterprise (not recommended, just made for initial testing)
-
-UPDATE outlets o
-JOIN outlets_raw r
-  ON o.business_name collate utf8mb4_unicode_ci = r.business_name collate utf8mb4_unicode_ci 
-  and o.address collate utf8mb4_unicode_ci = r.address collate utf8mb4_unicode_ci
-  and o.landmark collate utf8mb4_unicode_ci = r.landmark collate utf8mb4_unicode_ci
-  and o.url_alias collate utf8mb4_unicode_ci = r.url_alias collate utf8mb4_unicode_ci
-SET o.outlet_raw_id = r.id;
-
--- OR -- RAN FASTER THAN THE ABOVE
-
-create index idx_outlets_raw_eacs_id on outlets_raw(enterprise_actual_client_store_id);
-create index idx_outlets_eacs_id on outlets(enterprise_actual_client_store_id);
-
-UPDATE outlets o
-JOIN outlets_raw r
-  ON o.enterprise_actual_client_store_id = r.enterprise_actual_client_store_id
-SET o.outlet_raw_id = r.id;
 
 -- 2. Master Outlet Categories Table
 create table master_outlet_categories (
@@ -546,6 +526,9 @@ create table call_product_mentions (
 	id INT auto_increment primary key,
 	call_recording_analytics_id INT,
 	master_outlet_product_id INT,
+    master_outlet_id INT,
+    outlet_id INT,
+    call_recording_id INT,
 	product_sentiment VARCHAR(250),
 	product_verbatim VARCHAR(250),
 	tags VARCHAR(250),
@@ -558,12 +541,30 @@ create table call_product_mentions (
         FOREIGN KEY (master_outlet_product_id)
         REFERENCES master_outlet_products(id)
         ON DELETE CASCADE
+        ON UPDATE cascade,
+    CONSTRAINT fk_product_mentions_master_outlet_id
+        FOREIGN KEY (master_outlet_id)
+        REFERENCES brands(id)
+        ON DELETE CASCADE
+        ON UPDATE cascade,
+    CONSTRAINT fk_product_mentions_outlet_id
+        FOREIGN KEY (outlet_id)
+        REFERENCES outlets(id)
+        ON DELETE CASCADE
+        ON UPDATE cascade,
+    CONSTRAINT fk_product_mentions_call_recording_id
+        FOREIGN KEY (call_recording_id)
+        REFERENCES customer_call_recordings(id)
+        ON DELETE CASCADE
         ON UPDATE cascade
 );
 
 INSERT INTO call_product_mentions (
     call_recording_analytics_id,
     master_outlet_product_id,
+    master_outlet_id,
+    outlet_id,
+    call_recording_id,
     product_sentiment,
     product_verbatim,
     tags
@@ -571,6 +572,9 @@ INSERT INTO call_product_mentions (
 SELECT 
     cra.id,
     mop.id,
+    cra.master_outlet_id,
+    cra.outlet_id,
+    cra.call_recording_id,
     jt.sentiment,
     jt.verbatim,
     jt.tags
@@ -595,11 +599,43 @@ INNER JOIN master_outlet_products mop
     AND mop.category_id = moc.id
     AND mop.master_outlet_id = cra.master_outlet_id;
 
+-- Normalized table (child)
+CREATE TABLE call_product_mention_tags (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    call_product_mentions_id INT,
+    tags VARCHAR(250),
+    CONSTRAINT fk_call_product_mention_tags_call_product_mentions_id
+        FOREIGN KEY (call_product_mentions_id)
+        REFERENCES call_product_mentions(id)
+        ON DELETE CASCADE
+        ON UPDATE cascade
+);
+
+INSERT INTO call_product_mention_tags (
+    call_product_mention_id,
+    tags
+)
+SELECT 
+    cpm.id,
+    TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(cpm.tags, ',', numbers.n), ',', -1)) AS tag
+FROM call_product_mentions cpm
+JOIN (
+    SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL 
+    SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL 
+    SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
+) numbers
+ON CHAR_LENGTH(cpm.tags) - CHAR_LENGTH(REPLACE(cpm.tags, ',', '')) >= numbers.n - 1;
+
+ALTER TABLE call_product_mentions DROP COLUMN tags;
+
 -- 8. Call Reasons
 create table call_reasons (
 	id INT auto_increment primary key,
 	call_recording_analytics_id INT,
 	master_outlet_reason_id INT,
+    master_outlet_id INT,
+    outlet_id INT,
+    call_recording_id INT,
 	reason_verbatim TEXT,
     CONSTRAINT fk_call_reasons_rec_analytics_id
         FOREIGN KEY (call_recording_analytics_id)
@@ -610,17 +646,38 @@ create table call_reasons (
         FOREIGN KEY (master_outlet_reason_id)
         REFERENCES master_outlet_call_reasons(id)
         ON DELETE CASCADE
-        ON UPDATE cascade
+        ON UPDATE cascade,
+    CONSTRAINT fk_call_reasons_master_outlet_id
+        FOREIGN KEY (master_outlet_id)
+        REFERENCES brands(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_call_reasons_outlet_id
+        FOREIGN KEY (outlet_id)
+        REFERENCES outlets(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_call_reasons_call_recording_id
+        FOREIGN KEY (call_recording_id)
+        REFERENCES customer_call_recordings(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 );
 
 INSERT INTO call_reasons (
     call_recording_analytics_id,
     master_outlet_reason_id,
+    master_outlet_id,
+    outlet_id,
+    call_recording_id,
     reason_verbatim
 )
 SELECT 
     cra.id,
     mocr.id,
+    cra.master_outlet_id,
+    cra.outlet_id,
+    cra.call_recording_id,
     raw.reason_verbatim
 FROM call_recording_analytics cra
 JOIN customer_call_recordings ccr ON cra.call_recording_id = ccr.id
@@ -649,6 +706,9 @@ VALUES
 CREATE TABLE IF NOT EXISTS call_analytics_emotions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     call_recording_analytics_id INT,
+    master_outlet_id INT,
+    outlet_id INT,
+    call_recording_id INT,
     emotion_id INT,
     emotion_verbatim VARCHAR(500),
     CONSTRAINT fk_call_analytics_emotions_rec_analytics_id
@@ -660,16 +720,37 @@ CREATE TABLE IF NOT EXISTS call_analytics_emotions (
         FOREIGN KEY (emotion_id)
         REFERENCES emotions_master(id)
         ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_call_analytics_emotions_master_outlet_id
+        FOREIGN KEY (master_outlet_id)
+        REFERENCES brands(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_call_analytics_emotions_outlet_id
+        FOREIGN KEY (outlet_id)
+        REFERENCES outlets(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_call_analytics_emotions_call_recording_id
+        FOREIGN KEY (call_recording_id)
+        REFERENCES customer_call_recordings(id)
+        ON DELETE CASCADE
         ON UPDATE CASCADE
 );
 
 INSERT INTO call_analytics_emotions (
     call_recording_analytics_id,
+    master_outlet_id,
+    outlet_id,
+    call_recording_id,
     emotion_id,
     emotion_verbatim
 )
 SELECT 
     cra.id,
+    cra.master_outlet_id,
+    cra.outlet_id,
+    cra.call_recording_id,
     em.id,
     jt.verbatim
 FROM call_recording_analytics cra
