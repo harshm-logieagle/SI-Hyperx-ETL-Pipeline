@@ -419,6 +419,35 @@ def get_reason_id_from_db(master_outlet_id, reason_text):
             conn.close()
 
 
+def get_emotion_id_from_db(cursor, emotion_name):
+    """
+    Fetches the ID for a specific emotion from emotions_master using an existing cursor.
+    """
+    if not emotion_name:
+        return None
+    try:
+        # Fetch all available emotions for matching
+        cursor.execute("SELECT id, name FROM emotions_master")
+        results = cursor.fetchall()
+        if not results:
+            return None
+            
+        emotion_map = {r[1].lower(): r[0] for r in results}
+        
+        # Exact match (case insensitive)
+        if emotion_name.lower() in emotion_map:
+            return emotion_map[emotion_name.lower()]
+            
+        # Closest match
+        emotion_names = [r[1] for r in results]
+        matched_name = closest_match(emotion_names, emotion_name)
+        return emotion_map[matched_name.lower()]
+        
+    except Error as e:
+        print(f"Error fetching emotion ID: {e}")
+        return None
+
+
 def get_product_list(master_outlet_id):
     conn = None
     try:
@@ -700,6 +729,26 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
                 ))
             conn.commit()
             print("Successfully saved reasons to call_reasons table.")
+
+            # Save emotions
+            cursor.execute("DELETE FROM call_analytics_emotions WHERE call_recording_analytics_id = %s", (analytics_id,))
+            for e in emotions_data:
+                e_name = e.get("emotion")
+                if not e_name:
+                    continue
+                
+                e_id = get_emotion_id_from_db(cursor, e_name)
+                if e_id:
+                    emotion_query = """
+                        INSERT INTO call_analytics_emotions 
+                        (call_recording_analytics_id, emotion_id, emotion_verbatim)
+                        VALUES (%s, %s, %s)
+                    """
+                    cursor.execute(emotion_query, (
+                        analytics_id, e_id, e.get("emotion_verbatim", "")
+                    ))
+            conn.commit()
+            print("Successfully saved emotions to call_analytics_emotions table.")
             
         print("Successfully saved base analytics to call_recording_analytics table.")
     except Error as e:
@@ -972,10 +1021,21 @@ def remove_silence_from_audio_bytes(audio_bytes, filename, threshold=0.5, min_si
             keep_silence_samples = int(keep_silence_ms * sample_rate / 1000)
             chunks = []
             
-            for ts in speech_timestamps:
+            # Create a silence gap of 100ms to insert between segments
+            # This ensures speech is not tightly stitched, which helps STT models
+            silence_gap_samples = int(100 * sample_rate / 1000)
+            silence_gap = torch.zeros(silence_gap_samples, dtype=wav.dtype)
+
+            for i, ts in enumerate(speech_timestamps):
                 start = max(0, ts["start"] - keep_silence_samples)
                 end = min(len(wav), ts["end"] + keep_silence_samples)
+                
+                # Add the speech chunk
                 chunks.append(wav[start:end])
+                
+                # Add silence gap between segments (but not after the last one)
+                if i < len(speech_timestamps) - 1:
+                    chunks.append(silence_gap)
             
             # Concatenate all speech segments
             processed_wav = torch.cat(chunks, dim=0)
@@ -1316,6 +1376,17 @@ def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, produc
     print("\n=== STEP 1: TRANSCRIPTION ===")
     transcript = transcribe_audio(audio_path, brand_name)
     
+    # Check if transcript length is less than 100 characters
+    if not transcript or len(transcript) < 100:
+        print(f"Transcript length ({len(transcript) if transcript else 0}) is less than 100. Marking as invalid and skipping further processing.")
+        return {
+            "transcript": transcript or "",
+            "base_analytics": {
+                "transcript": [] # This ensures is_valid_transcript = 0 in save_base_analytics
+            },
+            "reason_paths": []
+        }
+    
     print("\n=== STEP 2: BASE ANALYTICS ANALYSIS ===")
     base_analytics = get_base_analytics(
         transcript, brand_name, master_outlet_id, product_list, 
@@ -1404,6 +1475,6 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    for i in range(1, 501):
+    for i in range(370, 501):
         CALL_ID = i
         main(CALL_ID)

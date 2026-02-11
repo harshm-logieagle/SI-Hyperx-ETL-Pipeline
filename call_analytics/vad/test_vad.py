@@ -343,10 +343,21 @@ class VADHandler:
         keep_silence_samples = int(keep_silence_ms * self.sample_rate / 1000)
         chunks = []
         
-        for ts in speech_timestamps:
+        # Create a silence gap of 100ms to insert between segments
+        # This ensures speech is not tightly stitched, which helps STT models
+        silence_gap_samples = int(100 * self.sample_rate / 1000)
+        silence_gap = torch.zeros(silence_gap_samples, dtype=wav.dtype)
+
+        for i, ts in enumerate(speech_timestamps):
             start = max(0, ts["start"] - keep_silence_samples)
             end = min(len(wav), ts["end"] + keep_silence_samples)
+            
+            # Add the speech chunk
             chunks.append(wav[start:end])
+            
+            # Add silence gap between segments (but not after the last one)
+            if i < len(speech_timestamps) - 1:
+                chunks.append(silence_gap)
 
         # Concatenate all speech segments
         processed_wav = torch.cat(chunks, dim=0)

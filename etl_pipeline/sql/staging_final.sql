@@ -249,6 +249,8 @@ JOIN brands b
      = m.brand_name COLLATE utf8mb4_unicode_ci
 WHERE c.outlet_type IN ('retail','enterprise');
 
+-- Too complex for enterprise (not recommended, just made for initial testing)
+
 UPDATE outlets o
 JOIN outlets_raw r
   ON o.business_name collate utf8mb4_unicode_ci = r.business_name collate utf8mb4_unicode_ci 
