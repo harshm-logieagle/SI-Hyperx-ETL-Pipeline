@@ -1,5 +1,6 @@
 import json
 from groq import Groq
+import groq
 import httpx
 import os
 import urllib.parse
@@ -7,6 +8,8 @@ import mysql.connector
 import requests
 from mysql.connector import Error
 from dotenv import load_dotenv
+import time
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 load_dotenv()
 
@@ -14,6 +17,27 @@ client = Groq(
     api_key=os.getenv("GROQ_API_KEY"),
     http_client=httpx.Client()
 )
+
+# Retry logic for Groq calls
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    retry=retry_if_exception_type((groq.RateLimitError, groq.APIConnectionError, groq.InternalServerError, groq.APITimeoutError)),
+    reraise=True
+)
+def groq_chat_completion_with_retry(**kwargs):
+    print(f"Calling Groq Chat Completion with model: {kwargs.get('model')}")
+    return client.chat.completions.create(**kwargs)
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    retry=retry_if_exception_type((groq.RateLimitError, groq.APIConnectionError, groq.InternalServerError, groq.APITimeoutError)),
+    reraise=True
+)
+def groq_transcription_with_retry(**kwargs):
+    print(f"Calling Groq Audio Transcription with model: {kwargs.get('model')}")
+    return client.audio.translations.create(**kwargs)
 
 def levenshtein_distance(s1, s2):
     m, n = len(s1), len(s2)
@@ -46,6 +70,12 @@ def closest_match(string_list, input_string):
     print(f"Closest match: '{input_string}' -> '{closest_string}'")
     return closest_string
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((requests.exceptions.RequestException)),
+    reraise=False
+)
 def detect_language(audio_url, state, timeout=180):
     print(f"Detecting language for audio URL: {audio_url} with state: {state}")
     if state and state != '':
@@ -59,7 +89,7 @@ def detect_language(audio_url, state, timeout=180):
         payload = {
             "url": audio_url
         }
-
+    
     headers = {
         'Content-Type': 'application/json'
     }
@@ -71,7 +101,7 @@ def detect_language(audio_url, state, timeout=180):
         print(f"Language detection result: {result}")
         return result.get('language', '')
     except (requests.exceptions.Timeout, requests.exceptions.RequestException) as e:
-        print(f"Language detection failed: {str(e)}")
+        print(f"Language detection failed after retries: {str(e)}")
         return ''
 
 DB_CONFIG = {
@@ -511,16 +541,29 @@ def get_base_analytics(transcript, brand_name, master_outlet_id, product_list, c
     )
     
     try:
-        completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
-                {"role": "user", "content": user_prompt}
-            ],
-            response_format={"type": "json_object"},
-            max_completion_tokens=30000,
-            temperature=0.1
-        )
+        try:
+            completion = groq_chat_completion_with_retry(
+                model="openai/gpt-oss-120b",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_completion_tokens=30000,
+                temperature=0.1
+            )
+        except Exception as e:
+            print(f"Primary model 'openai/gpt-oss-120b' failed after retries: {e}. Trying fallback 'llama-3.3-70b-versatile'...")
+            completion = groq_chat_completion_with_retry(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_completion_tokens=30000,
+                temperature=0.1
+            )
         result = json.loads(completion.choices[0].message.content)
         
         if "products_mentioned" in result and isinstance(result["products_mentioned"], list):
@@ -626,7 +669,7 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
                     "prod_id": prod_id,
                     "sentiment": sentiment,
                     "verbatim": verbatim,
-                    "tags": tags_str
+                    "tags": tags
                 })
             
             # Add product specific reason if unique and has ID
@@ -707,12 +750,27 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             for m in valid_product_mentions:
                 mention_query = """
                     INSERT INTO call_product_mentions 
-                    (call_recording_analytics_id, master_outlet_product_id, product_sentiment, product_verbatim, tags)
-                    VALUES (%s, %s, %s, %s, %s)
+                    (call_recording_analytics_id, master_outlet_id, outlet_id, call_recording_id, master_outlet_product_id, product_sentiment, product_verbatim)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 cursor.execute(mention_query, (
-                    analytics_id, m["prod_id"], m["sentiment"], m["verbatim"], m["tags"]
+                    analytics_id, master_outlet_id, outlet_id, call_recording_id, m["prod_id"], m["sentiment"], m["verbatim"]
                 ))
+                
+                # Get the ID of the inserted product mention
+                mention_id = cursor.lastrowid
+                
+                # Insert tags into normalized table
+                product_tags_list = m.get("tags", [])
+                if isinstance(product_tags_list, list) and product_tags_list:
+                    tag_query = """
+                        INSERT INTO call_product_mention_tags 
+                        (call_product_mentions_id, tags)
+                        VALUES (%s, %s)
+                    """
+                    for tag in product_tags_list:
+                        if tag:
+                            cursor.execute(tag_query, (mention_id, tag))
             conn.commit()
             print("Successfully saved product mentions to call_product_mentions table.")
             
@@ -721,11 +779,11 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             for r in valid_call_reasons:
                 reason_query = """
                     INSERT INTO call_reasons 
-                    (call_recording_analytics_id, master_outlet_reason_id, reason_verbatim)
-                    VALUES (%s, %s, %s)
+                    (call_recording_analytics_id, master_outlet_id, outlet_id, call_recording_id, master_outlet_reason_id, reason_verbatim)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """
                 cursor.execute(reason_query, (
-                    analytics_id, r["reason_id"], r["verbatim"]
+                    analytics_id, master_outlet_id, outlet_id, call_recording_id, r["reason_id"], r["verbatim"]
                 ))
             conn.commit()
             print("Successfully saved reasons to call_reasons table.")
@@ -741,11 +799,11 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
                 if e_id:
                     emotion_query = """
                         INSERT INTO call_analytics_emotions 
-                        (call_recording_analytics_id, emotion_id, emotion_verbatim)
-                        VALUES (%s, %s, %s)
+                        (call_recording_analytics_id, master_outlet_id, outlet_id, call_recording_id, emotion_id, emotion_verbatim)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                     """
                     cursor.execute(emotion_query, (
-                        analytics_id, e_id, e.get("emotion_verbatim", "")
+                        analytics_id, master_outlet_id, outlet_id, call_recording_id, e_id, e.get("emotion_verbatim", "")
                     ))
             conn.commit()
             print("Successfully saved emotions to call_analytics_emotions table.")
@@ -1081,9 +1139,18 @@ def transcribe_audio(audio_path, brand_name, apply_vad=True):
     print(f"Transcribing audio: {audio_path}")
     try:
         if audio_path.startswith(("http://", "https://")):
-            response = httpx.get(audio_path, follow_redirects=True)
-            response.raise_for_status()
-            audio_bytes = response.content
+            # Retry audio download
+            for attempt in range(3):
+                try:
+                    response = httpx.get(audio_path, follow_redirects=True, timeout=60)
+                    response.raise_for_status()
+                    audio_bytes = response.content
+                    break
+                except (httpx.HTTPError, Exception) as e:
+                    if attempt == 2: raise
+                    print(f"Audio download failed (attempt {attempt+1}/3), retrying... ({e})")
+                    time.sleep(2)
+            
             content_type = response.headers.get("Content-Type", "").lower()
             extension_map = {
                 "audio/wav": ".wav",
@@ -1146,13 +1213,23 @@ def transcribe_audio(audio_path, brand_name, apply_vad=True):
             file_to_send = (filename, audio_bytes)
             print(f"[VAD] VAD disabled, using original audio")
         
-        transcription = client.audio.translations.create(
-            file=file_to_send,
-            model="whisper-large-v3",
-            response_format="verbose_json",
-            prompt=brand_name,
-            temperature=0.2
-        )
+        try:
+            transcription = groq_transcription_with_retry(
+                file=file_to_send,
+                model="whisper-large-v3",
+                response_format="verbose_json",
+                prompt=brand_name,
+                temperature=0.2
+            )
+        except Exception as e:
+            print(f"Primary transcription model 'whisper-large-v3' failed after retries: {e}. Trying fallback 'distil-whisper-large-v3-en'...")
+            transcription = groq_transcription_with_retry(
+                file=file_to_send,
+                model="distil-whisper-large-v3-en",
+                response_format="verbose_json",
+                prompt=brand_name,
+                temperature=0.2
+            )
         return transcription.text
     except Exception as e:
         print(f"Transcription Error: {e}")
@@ -1262,16 +1339,29 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
         handled_list=", ".join(handled_list)
     )
     try:
-        completion = client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
-            ],
-            response_format={"type": "json_object"},
-            max_completion_tokens=30000,
-            temperature=0.1
-        )
+        try:
+            completion = groq_chat_completion_with_retry(
+                model="openai/gpt-oss-120b",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_completion_tokens=30000,
+                temperature=0.1
+            )
+        except Exception as e:
+            print(f"Primary model 'openai/gpt-oss-120b' failed for tree traversal after retries: {e}. Trying fallback 'llama-3.3-70b-versatile'...")
+            completion = groq_chat_completion_with_retry(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_completion_tokens=30000,
+                temperature=0.1
+            )
         raw_output = json.loads(completion.choices[0].message.content)
         reason_paths = raw_output.get("reason_paths", [])
         
@@ -1475,6 +1565,6 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    for i in range(370, 501):
+    for i in range(1, 11):
         CALL_ID = i
         main(CALL_ID)
