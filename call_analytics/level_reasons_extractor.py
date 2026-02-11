@@ -4,6 +4,7 @@ import groq
 import httpx
 import os
 import urllib.parse
+from openai import OpenAI
 import mysql.connector
 import requests
 from mysql.connector import Error
@@ -16,6 +17,10 @@ load_dotenv()
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY"),
     http_client=httpx.Client()
+)
+
+openai_client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
 )
 
 # Retry logic for Groq calls
@@ -126,6 +131,7 @@ You must:
 - Use ONLY labels present in workflow tree
 - Maintain sequential level numbering starting from 0
 - Stop traversal when transcript evidence ends
+- Return all extracted labels and paths strictly in English
 - Return valid JSON only
 """
 
@@ -259,6 +265,9 @@ END OF CALL STATUS HANDLING
   - Populate it with the actual call ending status (e.g., resolved, dropped, follow-up required, transferred, etc.)
     only if explicitly supported by transcript or base analytics.
   - Do not infer or fabricate call outcomes.
+
+LANGUAGE RULE
+- REGARDLESS of the input transcript language, all extracted data, summaries, verbatim excerpts, and diarized transcripts MUST be returned in English.
 
 OUTPUT REQUIREMENTS
 - Output MUST be valid JSON.
@@ -553,16 +562,14 @@ def get_base_analytics(transcript, brand_name, master_outlet_id, product_list, c
                 temperature=0.1
             )
         except Exception as e:
-            print(f"Primary model 'openai/gpt-oss-120b' failed after retries: {e}. Trying fallback 'llama-3.3-70b-versatile'...")
-            completion = groq_chat_completion_with_retry(
-                model="llama-3.3-70b-versatile",
+            print(f"Primary model 'openai/gpt-oss-120b' failed after retries: {e}. Trying fallback OpenAI's 'gpt-5-mini'...")
+            completion = openai_client.chat.completions.create(
+                model="gpt-5-mini",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
                     {"role": "user", "content": user_prompt}
                 ],
-                response_format={"type": "json_object"},
-                max_completion_tokens=30000,
-                temperature=0.1
+                response_format={"type": "json_object"}
             )
         result = json.loads(completion.choices[0].message.content)
         
@@ -1222,13 +1229,12 @@ def transcribe_audio(audio_path, brand_name, apply_vad=True):
                 temperature=0.2
             )
         except Exception as e:
-            print(f"Primary transcription model 'whisper-large-v3' failed after retries: {e}. Trying fallback 'distil-whisper-large-v3-en'...")
-            transcription = groq_transcription_with_retry(
+            print(f"Primary transcription model 'whisper-large-v3' failed after retries: {e}. Trying fallback to OpenAI's 'whisper-1'...")
+            transcription = openai_client.audio.translations.create(
                 file=file_to_send,
-                model="distil-whisper-large-v3-en",
+                model="whisper-1",
                 response_format="verbose_json",
-                prompt=brand_name,
-                temperature=0.2
+                prompt=brand_name
             )
         return transcription.text
     except Exception as e:
@@ -1351,17 +1357,16 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
                 temperature=0.1
             )
         except Exception as e:
-            print(f"Primary model 'openai/gpt-oss-120b' failed for tree traversal after retries: {e}. Trying fallback 'llama-3.3-70b-versatile'...")
-            completion = groq_chat_completion_with_retry(
-                model="llama-3.3-70b-versatile",
+            print(f"Primary model 'openai/gpt-oss-120b' failed for tree traversal after retries: {e}. Trying fallback OpenAI's 'gpt-5-mini'...")
+            completion = openai_client.chat.completions.create(
+                model="gpt-5-mini",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt}
                 ],
-                response_format={"type": "json_object"},
-                max_completion_tokens=30000,
-                temperature=0.1
+                response_format={"type": "json_object"}
             )
+
         raw_output = json.loads(completion.choices[0].message.content)
         reason_paths = raw_output.get("reason_paths", [])
         
@@ -1462,7 +1467,7 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
         print("LLM Processing Error:", e)
         return {"reason_paths": []}
 
-def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, product_list, complaint_reasons, enquiry_reasons, request_reasons, handled_list):
+def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, product_list, complaint_reasons, enquiry_reasons, request_reasons, handled_list, call_language=''):
     print("\n=== STEP 1: TRANSCRIPTION ===")
     transcript = transcribe_audio(audio_path, brand_name)
     
@@ -1540,7 +1545,8 @@ def main(call_recording_id):
         complaint_reasons=complaint_reasons,
         enquiry_reasons=enquiry_reasons,
         request_reasons=request_reasons,
-        handled_list=handled_list
+        handled_list=handled_list,
+        call_language=call_language
     )
     
     if result.get("base_analytics"):
