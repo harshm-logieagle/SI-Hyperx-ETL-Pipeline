@@ -11,6 +11,7 @@ from mysql.connector import Error
 from dotenv import load_dotenv
 import time
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from types import SimpleNamespace
 
 load_dotenv()
 
@@ -23,7 +24,7 @@ openai_client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-# Retry logic for Groq calls
+
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_exponential(multiplier=1, min=4, max=60),
@@ -43,6 +44,168 @@ def groq_chat_completion_with_retry(**kwargs):
 def groq_transcription_with_retry(**kwargs):
     print(f"Calling Groq Audio Transcription with model: {kwargs.get('model')}")
     return client.audio.translations.create(**kwargs)
+
+def llm_chat_completion_with_fallbacks(**kwargs):
+    """
+    Tiered fallback logic:
+    1. Groq Flex (detected via requests)
+    2. Groq Normal (via existing retry wrapper)
+    3. OpenAI (as final fallback)
+    """
+    model = kwargs.get("model", "openai/gpt-oss-120b")
+    messages = kwargs.get("messages")
+    temperature = kwargs.get("temperature", 0.1)
+    max_tokens = kwargs.get("max_completion_tokens") or kwargs.get("max_tokens")
+    response_format = kwargs.get("response_format")
+    
+    # Groq Flex
+    print(f"Tier 1: Calling Groq Flex with model: {model}")
+    try:
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"
+        }
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "response_format": response_format,
+            "service_tier": "flex"
+        }
+        payload = {k: v for k, v in payload.items() if v is not None}
+        
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=120
+        )
+        
+        if response.status_code == 498:
+            print("Groq Flex failed with status code 498 (Capacity Exceeded). Switching to Tier 2.")
+        elif response.status_code != 200:
+            try:
+                res_json = response.json()
+                error_msg = res_json.get("error", {}).get("message", "")
+                if "capacity_exceeded" in error_msg or "capacity_exceeded" in str(res_json):
+                    print("Groq Flex capacity exceeded. Switching to Tier 2.")
+                else:
+                    print(f"Groq Flex failed with status {response.status_code}: {error_msg}. Switching to Tier 2.")
+            except:
+                print(f"Groq Flex failed with status {response.status_code}. Switching to Tier 2.")
+        else:
+            res_json = response.json()
+            print("Groq Flex successful.")
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(
+                            content=res_json["choices"][0]["message"]["content"]
+                        )
+                    )
+                ]
+            )
+    except Exception as e:
+        print(f"Groq Flex request failed: {e}. Switching to Tier 2.")
+
+    # Tier 2: Groq Normal
+    print(f"Tier 2: Calling Groq Normal with model: {model}")
+    try:
+        return groq_chat_completion_with_retry(**kwargs)
+    except Exception as e:
+        print(f"Tier 2 (Groq Normal) failed after retries: {e}. Switching to Tier 3 (OpenAI).")
+        
+    # OpenAI
+    fallback_model = "gpt-5-mini"
+    print(f"Tier 3: Calling OpenAI with model: {fallback_model}")
+    openai_kwargs = kwargs.copy()
+    openai_kwargs["model"] = fallback_model
+    
+    if "max_completion_tokens" in openai_kwargs:
+        openai_kwargs["max_tokens"] = openai_kwargs.pop("max_completion_tokens")
+        
+    return openai_client.chat.completions.create(**openai_kwargs)
+
+def stt_transcription_with_fallbacks(**kwargs):
+    """
+    Tiered fallback logic for STT:
+    1. Groq Flex (detected via requests)
+    2. Groq Normal (via existing retry wrapper)
+    3. OpenAI (as final fallback)
+    """
+    model = kwargs.get("model", "whisper-large-v3")
+    file_to_send = kwargs.get("file")
+    prompt = kwargs.get("prompt")
+    response_format = kwargs.get("response_format", "verbose_json")
+    temperature = kwargs.get("temperature", 0.2)
+
+    
+    # Groq Flex
+    print(f"Tier 1: Calling Groq Flex STT with model: {model}")
+    try:
+        headers = {
+            "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"
+        }
+        filename = file_to_send[0]
+        ext = os.path.splitext(filename)[1].lower()
+        mime_type = "audio/mpeg"
+        if ext == ".wav": mime_type = "audio/wav"
+        elif ext == ".m4a": mime_type = "audio/mp4"
+        elif ext == ".webm": mime_type = "audio/webm"
+        
+        files = {
+            "file": (filename, file_to_send[1], mime_type)
+        }
+        data = {
+            "model": model,
+            "response_format": response_format,
+            "temperature": str(temperature)
+        }
+        if prompt:
+            data["prompt"] = prompt
+            
+        print(f"Tier 1: Calling Groq Normal STT (checking for Flex-like failures)")
+        response = requests.post(
+            "https://api.groq.com/openai/v1/audio/translations",
+            headers=headers,
+            files=files,
+            data=data,
+            timeout=180
+        )
+
+        if response.status_code == 498:
+            print("Groq STT failed with status code 498 (Capacity Exceeded). Switching to Tier 2.")
+        elif response.status_code != 200:
+            try:
+                res_json = response.json()
+                error_msg = res_json.get("error", {}).get("message", "")
+                if "capacity_exceeded" in error_msg or "capacity_exceeded" in str(res_json):
+                    print("Groq STT capacity exceeded. Switching to Tier 2.")
+                else:
+                    print(f"Groq STT failed with status {response.status_code}: {error_msg}. Switching to Tier 2.")
+            except:
+                print(f"Groq STT failed with status {response.status_code}. Switching to Tier 2.")
+        else:
+            res_json = response.json()
+            print("Groq Flex STT successful.")
+            return SimpleNamespace(text=res_json.get("text", ""))
+    except Exception as e:
+        print(f"Groq Flex STT request failed: {e}. Switching to Tier 2.")
+
+    # Tier 2: Groq Normal
+    print(f"Tier 2: Calling Groq Normal STT with model: {model}")
+    try:
+        return groq_transcription_with_retry(**kwargs)
+    except Exception as e:
+        print(f"Tier 2 (Groq Normal STT) failed after retries: {e}. Switching to Tier 3 (OpenAI).")
+        
+    # OpenAI
+    fallback_model = "whisper-1"
+    print(f"Tier 3: Calling OpenAI STT with model: {fallback_model}")
+    openai_kwargs = kwargs.copy()
+    openai_kwargs["model"] = fallback_model
+    return openai_client.audio.translations.create(**openai_kwargs)
 
 def levenshtein_distance(s1, s2):
     m, n = len(s1), len(s2)
@@ -465,7 +628,6 @@ def get_emotion_id_from_db(cursor, emotion_name):
     if not emotion_name:
         return None
     try:
-        # Fetch all available emotions for matching
         cursor.execute("SELECT id, name FROM emotions_master")
         results = cursor.fetchall()
         if not results:
@@ -473,11 +635,9 @@ def get_emotion_id_from_db(cursor, emotion_name):
             
         emotion_map = {r[1].lower(): r[0] for r in results}
         
-        # Exact match (case insensitive)
         if emotion_name.lower() in emotion_map:
             return emotion_map[emotion_name.lower()]
-            
-        # Closest match
+                
         emotion_names = [r[1] for r in results]
         matched_name = closest_match(emotion_names, emotion_name)
         return emotion_map[matched_name.lower()]
@@ -550,27 +710,16 @@ def get_base_analytics(transcript, brand_name, master_outlet_id, product_list, c
     )
     
     try:
-        try:
-            completion = groq_chat_completion_with_retry(
-                model="openai/gpt-oss-120b",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"},
-                max_completion_tokens=30000,
-                temperature=0.1
-            )
-        except Exception as e:
-            print(f"Primary model 'openai/gpt-oss-120b' failed after retries: {e}. Trying fallback OpenAI's 'gpt-5-mini'...")
-            completion = openai_client.chat.completions.create(
-                model="gpt-5-mini",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
+        completion = llm_chat_completion_with_fallbacks(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that replies with exactly what is asked and in the same exact format every time."},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"},
+            max_completion_tokens=30000,
+            temperature=0.1
+        )
         result = json.loads(completion.choices[0].message.content)
         
         if "products_mentioned" in result and isinstance(result["products_mentioned"], list):
@@ -580,12 +729,10 @@ def get_base_analytics(transcript, brand_name, master_outlet_id, product_list, c
                     matched_name = closest_match(product_list, original_name)
                     product_data["product"] = matched_name
                     
-                    # Enrich with Category from DB
                     details = get_product_details(master_outlet_id, matched_name)
                     product_data["category"] = details["category"]
                     product_data["product_id"] = details["id"]
                 
-                # Enrich Product Reason ID
                 p_reason = product_data.get("reason")
                 if p_reason:
                     p_reason_type = product_data.get("reason_type")
@@ -615,7 +762,6 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         
-        # Prepare list fields
         transcript_lines = base_analytics.get("transcript", [])
         transcript_text = json.dumps(transcript_lines)
         is_valid_transcript = 1 if transcript_lines else 0
@@ -630,20 +776,16 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
         products_data = base_analytics.get("products_mentioned", [])
         products_mentioned_json = json.dumps(products_data)
         
-        # Product-related summary strings
         product_names = []
         product_sentiments = []
         product_verbatims = []
         product_tags = []
         product_categories = []
         
-        # Validated product context to be stored in call_product_mentions
         valid_product_mentions = []
         
-        # Validated reason context to be stored in call_reasons
         valid_call_reasons = []
 
-        # Add main reason if exists
         main_reason_id = base_analytics.get("reason_id")
         if main_reason_id:
             valid_call_reasons.append({
@@ -666,7 +808,6 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             product_verbatims.append(verbatim)
             product_tags.append(tags_str)
             
-            # Use categories already enriched in get_base_analytics
             cat_name = p.get("category", "")
             prod_id = p.get("product_id")
             
@@ -679,13 +820,12 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
                     "tags": tags
                 })
             
-            # Add product specific reason if unique and has ID
             p_reason_id = p.get("reason_id")
             if p_reason_id:
                 if not any(r["reason_id"] == p_reason_id for r in valid_call_reasons):
                     valid_call_reasons.append({
                         "reason_id": p_reason_id,
-                        "verbatim": "" # Verbatim not available for product-level reasons in current structure
+                        "verbatim": ""
                     })
 
         products_str = "--||--".join(product_names)
@@ -746,7 +886,6 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
         cursor.execute(query, data)
         conn.commit()
         
-        # Fetch analytics record ID
         cursor.execute("SELECT id FROM call_recording_analytics WHERE call_recording_id = %s", (call_recording_id,))
         analytics_result = cursor.fetchone()
         
@@ -764,10 +903,8 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
                     analytics_id, master_outlet_id, outlet_id, call_recording_id, m["prod_id"], m["sentiment"], m["verbatim"]
                 ))
                 
-                # Get the ID of the inserted product mention
                 mention_id = cursor.lastrowid
                 
-                # Insert tags into normalized table
                 product_tags_list = m.get("tags", [])
                 if isinstance(product_tags_list, list) and product_tags_list:
                     tag_query = """
@@ -781,7 +918,6 @@ def save_base_analytics(master_outlet_id, outlet_id, call_recording_id, base_ana
             conn.commit()
             print("Successfully saved product mentions to call_product_mentions table.")
             
-            # Save call reasons
             cursor.execute("DELETE FROM call_reasons WHERE call_recording_analytics_id = %s", (analytics_id,))
             for r in valid_call_reasons:
                 reason_query = """
@@ -1043,7 +1179,6 @@ def remove_silence_from_audio_bytes(audio_bytes, filename, threshold=0.5, min_si
     try:
         print(f"[VAD] Processing audio to remove silence...")
         
-        # Load Silero VAD model
         model, utils = torch.hub.load(
             repo_or_dir='snakers4/silero-vad',
             model='silero_vad',
@@ -1053,20 +1188,16 @@ def remove_silence_from_audio_bytes(audio_bytes, filename, threshold=0.5, min_si
         )
         get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks = utils
         
-        # Write bytes to temporary file for librosa to read
         with NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp_input:
             tmp_input.write(audio_bytes)
             tmp_input_path = tmp_input.name
         
         try:
-            # Load audio using librosa (supports MP3, WAV, FLAC, etc.)
             sample_rate = 16000
             audio_float32, _ = librosa.load(tmp_input_path, sr=sample_rate, mono=True)
             
-            # Convert to torch tensor
             wav = torch.from_numpy(audio_float32)
             
-            # Get speech timestamps using Silero VAD
             speech_timestamps = get_speech_timestamps(
                 wav,
                 model,
@@ -1082,12 +1213,9 @@ def remove_silence_from_audio_bytes(audio_bytes, filename, threshold=0.5, min_si
                 print("[VAD] No speech detected, returning original audio")
                 return audio_bytes, {"vad_applied": False, "reason": "no_speech"}
             
-            # Collect speech chunks with padding
             keep_silence_samples = int(keep_silence_ms * sample_rate / 1000)
             chunks = []
             
-            # Create a silence gap of 100ms to insert between segments
-            # This ensures speech is not tightly stitched, which helps STT models
             silence_gap_samples = int(100 * sample_rate / 1000)
             silence_gap = torch.zeros(silence_gap_samples, dtype=wav.dtype)
 
@@ -1095,17 +1223,13 @@ def remove_silence_from_audio_bytes(audio_bytes, filename, threshold=0.5, min_si
                 start = max(0, ts["start"] - keep_silence_samples)
                 end = min(len(wav), ts["end"] + keep_silence_samples)
                 
-                # Add the speech chunk
                 chunks.append(wav[start:end])
                 
-                # Add silence gap between segments (but not after the last one)
                 if i < len(speech_timestamps) - 1:
                     chunks.append(silence_gap)
             
-            # Concatenate all speech segments
             processed_wav = torch.cat(chunks, dim=0)
             
-            # Calculate statistics
             original_duration_ms = len(wav) / sample_rate * 1000
             processed_duration_ms = len(processed_wav) / sample_rate * 1000
             removed_duration_ms = original_duration_ms - processed_duration_ms
@@ -1113,7 +1237,6 @@ def remove_silence_from_audio_bytes(audio_bytes, filename, threshold=0.5, min_si
             print(f"[VAD] Original: {original_duration_ms:.0f}ms, Processed: {processed_duration_ms:.0f}ms")
             print(f"[VAD] Removed {removed_duration_ms:.0f}ms ({removed_duration_ms/original_duration_ms*100:.1f}%) silence")
             
-            # Convert to bytes using soundfile
             with NamedTemporaryFile(delete=False, suffix='.wav') as tmp_output:
                 sf.write(tmp_output.name, processed_wav.numpy(), sample_rate)
                 tmp_output_path = tmp_output.name
@@ -1146,7 +1269,6 @@ def transcribe_audio(audio_path, brand_name, apply_vad=True):
     print(f"Transcribing audio: {audio_path}")
     try:
         if audio_path.startswith(("http://", "https://")):
-            # Retry audio download
             for attempt in range(3):
                 try:
                     response = httpx.get(audio_path, follow_redirects=True, timeout=60)
@@ -1206,36 +1328,24 @@ def transcribe_audio(audio_path, brand_name, apply_vad=True):
             )
             
             if vad_stats.get("vad_applied"):
-                # Use processed audio with silence removed
-                # Change filename to .wav since VAD outputs WAV format
                 filename_base = os.path.splitext(filename)[0]
                 filename = f"{filename_base}_vad.wav"
                 file_to_send = (filename, processed_bytes)
                 print(f"[VAD] Using VAD-processed audio for transcription")
             else:
-                # VAD failed or not applied, use original
                 file_to_send = (filename, audio_bytes)
                 print(f"[VAD] Using original audio for transcription")
         else:
             file_to_send = (filename, audio_bytes)
             print(f"[VAD] VAD disabled, using original audio")
         
-        try:
-            transcription = groq_transcription_with_retry(
-                file=file_to_send,
-                model="whisper-large-v3",
-                response_format="verbose_json",
-                prompt=brand_name,
-                temperature=0.2
-            )
-        except Exception as e:
-            print(f"Primary transcription model 'whisper-large-v3' failed after retries: {e}. Trying fallback to OpenAI's 'whisper-1'...")
-            transcription = openai_client.audio.translations.create(
-                file=file_to_send,
-                model="whisper-1",
-                response_format="verbose_json",
-                prompt=brand_name
-            )
+        transcription = stt_transcription_with_fallbacks(
+            file=file_to_send,
+            model="whisper-large-v3",
+            response_format="verbose_json",
+            prompt=brand_name,
+            temperature=0.2
+        )
         return transcription.text
     except Exception as e:
         print(f"Transcription Error: {e}")
@@ -1345,27 +1455,16 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
         handled_list=", ".join(handled_list)
     )
     try:
-        try:
-            completion = groq_chat_completion_with_retry(
-                model="openai/gpt-oss-120b",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"},
-                max_completion_tokens=30000,
-                temperature=0.1
-            )
-        except Exception as e:
-            print(f"Primary model 'openai/gpt-oss-120b' failed for tree traversal after retries: {e}. Trying fallback OpenAI's 'gpt-5-mini'...")
-            completion = openai_client.chat.completions.create(
-                model="gpt-5-mini",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
+        completion = llm_chat_completion_with_fallbacks(
+            model="openai/gpt-oss-120b",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"},
+            max_completion_tokens=30000,
+            temperature=0.1
+        )
 
         raw_output = json.loads(completion.choices[0].message.content)
         reason_paths = raw_output.get("reason_paths", [])
@@ -1444,7 +1543,6 @@ def process_transcript_with_tree(transcript, base_analytics, workflow_tree, prod
                             print(f"Backfilled path for product: {prod_name} under category: {p_category}")
                             break
                     
-                    # Fallback to old name-based detection
                     if child.get("label") == prod_name:
                         new_path = [{"level": 0, "label": prod_name}]
                         if p_reason_type:
@@ -1471,13 +1569,12 @@ def process_call(audio_path, brand_name, master_outlet_id, workflow_tree, produc
     print("\n=== STEP 1: TRANSCRIPTION ===")
     transcript = transcribe_audio(audio_path, brand_name)
     
-    # Check if transcript length is less than 100 characters
     if not transcript or len(transcript) < 100:
         print(f"Transcript length ({len(transcript) if transcript else 0}) is less than 100. Marking as invalid and skipping further processing.")
         return {
             "transcript": transcript or "",
             "base_analytics": {
-                "transcript": [] # This ensures is_valid_transcript = 0 in save_base_analytics
+                "transcript": []
             },
             "reason_paths": []
         }
@@ -1571,6 +1668,6 @@ def main(call_recording_id):
     print(json.dumps(summary_result, indent=2))
 
 if __name__ == "__main__":
-    for i in range(1, 11):
+    for i in range(1, 15):
         CALL_ID = i
         main(CALL_ID)
