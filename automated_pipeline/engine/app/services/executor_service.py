@@ -109,34 +109,98 @@ class ExecutorService:
             return ""
 
     def process_transcript(self, brand_name, transcript):
+        if not transcript or len(transcript) < 50:
+            return {}
+            
         response_format = {
-            'reason_type': 'Complaint',
+            'reason_type': 'Complaint', # Must be Request, Complaint or Enquiry
             'reason': '',
-            'products_mentioned': ['', '', '']
+            'products_mentioned': [] 
         }
         try:
             completion = self.client.chat.completions.create(
-                model='openai/gpt-oss-120b', # Using the model from notebook
+                model='llama-3.1-70b-versatile',
                 messages=[
-                    {'role': 'system', 'content': 'You are a helpful assistant that replies with exactly what is asked and in the same exact format every time.'},
-                    {'role': 'user', 'content': f"""this is a call to a brand {brand_name}: <transcript>{transcript}</transcript>
-I want to understand why they called under 3 headings Request, Complaint or Enquiry. Tag each call as one or the other.
-If the reason type is complaint, then pick the reason. If enquiry, then pick the reason. If request, then pick the reason. 
-Pull out the products mentioned. Give results as JSON only: {json.dumps(response_format)}"""}
+                    {'role': 'system', 'content': 'You are a precise call analyst. Extract call details in JSON format only.'},
+                    {'role': 'user', 'content': f"""Analyze this call transcript for brand '{brand_name}':
+<transcript>{transcript}</transcript>
+
+1. Categorize: Request, Complaint, or Enquiry.
+2. Extract the specific reason for the call.
+3. List products/services mentioned.
+
+Format as JSON: {json.dumps(response_format)}"""}
+                ],
+                response_format={'type': 'json_object'}
+            )
+            data = json.loads(completion.choices[0].message.content)
+            # Normalize reason_type
+            rt = str(data.get('reason_type', '')).capitalize()
+            if rt not in ['Complaint', 'Enquiry', 'Request']:
+                data['reason_type'] = 'Enquiry' # Default
+            else:
+                data['reason_type'] = rt
+            return data
+        except Exception as e:
+            print(f"Analysis error: {e}")
+            return {}
+
+    def cluster_reasons(self, reasons_list, brand_name, category):
+        if not reasons_list:
+            return []
+        try:
+            prompt = f"""I have a list of raw call reasons for {brand_name} in the category '{category}':
+{json.dumps(reasons_list)}
+
+Task: Cluster these into a clean list of 5-10 unique, high-level reason categories.
+Return ONLY a JSON array of strings.
+Example: ["Product Quality Issue", "Delivery Delay", "Price Inquiry"]"""
+
+            completion = self.client.chat.completions.create(
+                model='llama-3.1-70b-versatile',
+                messages=[
+                    {'role': 'system', 'content': 'You are a data clustering expert. Return JSON arrays only.'},
+                    {'role': 'user', 'content': prompt}
+                ],
+                response_format={'type': 'json_object'}
+            )
+            content = completion.choices[0].message.content
+            # The model might return {"reasons": [...]} or just [...] if we're lucky, 
+            # but with json_object it needs a key.
+            data = json.loads(content)
+            if isinstance(data, dict):
+                # Try to find the array in the dict
+                for val in data.values():
+                    if isinstance(val, list):
+                        return val
+            return data if isinstance(data, list) else []
+        except Exception as e:
+            print(f"Clustering error ({category}): {e}")
+            return list(set(reasons_list))[:10] # Fallback to unique items
+
+    def generate_product_hierarchy(self, products_list, brand_name):
+        if not products_list:
+            return {"General": ["Service"]}
+        try:
+            prompt = f"""I have a list of raw products/services mentioned in calls for {brand_name}:
+{json.dumps(list(set(products_list)))}
+
+Task: Organize these into a hierarchical structure (Category -> Sub-products).
+Return ONLY a JSON object where keys are Categories and values are lists of Sub-products.
+Example: {{"Electronics": ["Mobile", "Laptop"], "Home": ["AC", "Fan"]}}"""
+
+            completion = self.client.chat.completions.create(
+                model='llama-3.1-70b-versatile',
+                messages=[
+                    {'role': 'system', 'content': 'You are a product taxonomy expert. Return a JSON object mapping categories to lists.'},
+                    {'role': 'user', 'content': prompt}
                 ],
                 response_format={'type': 'json_object'}
             )
             return json.loads(completion.choices[0].message.content)
         except Exception as e:
-            print(f"Analysis error: {e}")
-            return {}
-
-    def cluster_reason(self, input_list, brand_name):
-        # Ported prompts from notebook
-        prompt = f"Cluster these reasons for {brand_name}: {input_list}. Return JSON in specific format."
-        # ... logic to call LLM for clustering ...
-        # (Simplified for now, will implement full version)
-        pass
+            print(f"Hierarchy error: {e}")
+            return {"Other": list(set(products_list))[:20]}
 
     def execute_pipeline(self, task):
         queue_id = task['id']
@@ -152,7 +216,7 @@ Pull out the products mentioned. Give results as JSON only: {json.dumps(response
         try:
             self.update_queue_status(queue_id, status='processing', stage='fetching_calls')
             
-            # 1. Fetch Calls with filters
+            # 1. Fetch Calls
             calls = CustomerCallRecordingsRepository.check_sample_calls_exist(
                 master_outlet_id, 
                 sample_size=sample_size,
@@ -166,54 +230,78 @@ Pull out the products mentioned. Give results as JSON only: {json.dumps(response
                 return
 
             df_calls = pd.DataFrame(calls)
-            df_calls['id'] = range(len(df_calls)) # Local ID for processing
-            df_calls['brand_name'] = brand_name
-
+            df_calls['internal_id'] = range(len(df_calls))
+            
             # 2. Download
             self.update_queue_status(queue_id, stage='downloading_audio')
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                futures = {executor.submit(self.download_single_mp3, row['call_recording_url'], row['id']): row['id'] for _, row in df_calls.iterrows()}
-                results = {}
+            with ThreadPoolExecutor(max_workers=20) as executor:
+                futures = {executor.submit(self.download_single_mp3, row['call_recording_url'], row['internal_id']): row['internal_id'] for _, row in df_calls.iterrows()}
+                paths = {}
                 for future in as_completed(futures):
-                    call_id, path = future.result()
-                    results[call_id] = path
-            df_calls['downloaded_path'] = df_calls['id'].map(results)
-            df_calls = df_calls.dropna(subset='downloaded_path')
+                    cid, path = future.result()
+                    if path: paths[cid] = path
+            
+            df_calls['downloaded_path'] = df_calls['internal_id'].map(paths)
+            df_calls = df_calls.dropna(subset=['downloaded_path'])
+
+            if df_calls.empty:
+                self.update_queue_status(queue_id, status='failed', error_message='Failed to download any recordings')
+                return
 
             # 3. Transcribe
             self.update_queue_status(queue_id, stage='transcribing_audio')
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = {executor.submit(self.transcribe_audio, path): path for path in df_calls['downloaded_path']}
-                transcriptions = {}
-                for future in as_completed(futures):
-                    path = futures[future]
-                    transcriptions[path] = future.result()
-            df_calls['audio_to_text'] = df_calls['downloaded_path'].map(transcriptions)
+                transcriptions = {futures[f]: f.result() for f in as_completed(futures)}
+            
+            df_calls['transcript'] = df_calls['downloaded_path'].map(transcriptions)
 
             # 4. Analyze
             self.update_queue_status(queue_id, stage='analyzing_transcripts')
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                futures = {executor.submit(self.process_transcript, brand_name, row['audio_to_text']): i for i, row in df_calls.iterrows()}
-                analyses = [future.result() for future in as_completed(futures)]
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(self.process_transcript, brand_name, t) for t in df_calls['transcript']]
+                analyses = [f.result() for f in as_completed(futures)]
             
-            df_processed = pd.concat([df_calls, pd.DataFrame(analyses)], axis=1)
-            # (Cleanup and clustering logic here...)
-            
-            # 5. Cluster (Placeholder for full clustering logic)
+            # Flatten analyses and group data
+            complaints = []
+            enquiries = []
+            requests = []
+            all_products = []
+
+            for res in analyses:
+                if not res: continue
+                rt = res.get('reason_type')
+                reason = res.get('reason')
+                products = res.get('products_mentioned', [])
+                
+                if rt == 'Complaint': complaints.append(reason)
+                elif rt == 'Enquiry': enquiries.append(reason)
+                elif rt == 'Request': requests.append(reason)
+                
+                if isinstance(products, list):
+                    all_products.extend(products)
+
+            # 5. Cluster & Structure
             self.update_queue_status(queue_id, stage='clustering')
             
-            # For demonstration, we'll store a mock result JSON
-            mock_result = {
+            final_result = {
                 "brand_name": brand_name,
-                "product_heirarchy_list": {"Main Category": ["Sub 1", "Sub 2"]},
-                "complaint_reasons": ["Reason 1", "Reason 2"],
-                "enquiry_reasons": ["Enquiry 1"],
-                "request_reasons": ["Request 1"]
+                "product_heirarchy_list": self.generate_product_hierarchy(all_products, brand_name),
+                "complaint_reasons": self.cluster_reasons(complaints, brand_name, "Complaint"),
+                "enquiry_reasons": self.cluster_reasons(enquiries, brand_name, "Enquiry"),
+                "request_reasons": self.cluster_reasons(requests, brand_name, "Request")
             }
 
-            self.update_queue_status(queue_id, status='review_pending', stage='completed', result_json=mock_result)
+            self.update_queue_status(queue_id, status='review_pending', stage='completed', result_json=final_result)
+            
+            # Cleanup downloads
+            for path in df_calls['downloaded_path']:
+                try: os.remove(path)
+                except: pass
 
         except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             self.update_queue_status(queue_id, status='failed', error_message=str(e))
 
     def run_worker(self):
