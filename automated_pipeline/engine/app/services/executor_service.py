@@ -46,35 +46,41 @@ class ExecutorService:
 
     def discover_and_queue(self):
         """Find brands that need processing and add to queue"""
-        brands = BrandRepository.get_brands_not_in_master_outlet_products()
-        for brand in brands:
-            master_outlet_id = brand['id']
-            # Check if already in queue
-            conn = get_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT id FROM automated_processing_queue WHERE master_outlet_id = %s", (master_outlet_id,))
-            if cursor.fetchone():
+        try:
+            brands = BrandRepository.get_brands_not_in_master_outlet_products()
+            for brand in brands:
+                master_outlet_id = brand['id']
+                # Check if already in queue
+                conn = get_connection()
+                cursor = conn.cursor(dictionary=True, buffered=True)
+                cursor.execute("SELECT id FROM automated_processing_queue WHERE master_outlet_id = %s", (master_outlet_id,))
+                exists = cursor.fetchone()
                 cursor.close()
                 conn.close()
-                continue
-            
-            # Check sample calls
-            calls = CustomerCallRecordingsRepository.check_sample_calls_exist(master_outlet_id)
-            if calls:
-                # Add to queue
-                # Need brand name first
-                cursor.execute("SELECT brand_name FROM brands WHERE id = %s LIMIT 1", (master_outlet_id,))
-                brand_data = cursor.fetchone()
-                brand_name = brand_data['brand_name'] if brand_data else f"Brand {master_outlet_id}"
                 
-                cursor.execute(
-                    "INSERT INTO automated_processing_queue (master_outlet_id, brand_name, status, stage) VALUES (%s, %s, 'pending', 'discovered')",
-                    (master_outlet_id, brand_name)
-                )
-                conn.commit()
-            
-            cursor.close()
-            conn.close()
+                if exists:
+                    continue
+                
+                # Check sample calls (default filter for auto-discovery)
+                calls = CustomerCallRecordingsRepository.check_sample_calls_exist(master_outlet_id)
+                if calls:
+                    # Add to queue
+                    conn = get_connection()
+                    cursor = conn.cursor(dictionary=True, buffered=True)
+                    # Need brand name first
+                    cursor.execute("SELECT brand_name FROM brands WHERE id = %s LIMIT 1", (master_outlet_id,))
+                    brand_data = cursor.fetchone()
+                    brand_name = brand_data['brand_name'] if brand_data else f"Brand {master_outlet_id}"
+                    
+                    cursor.execute(
+                        "INSERT INTO automated_processing_queue (master_outlet_id, brand_name, status, stage) VALUES (%s, %s, 'pending', 'discovered')",
+                        (master_outlet_id, brand_name)
+                    )
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+        except Exception as e:
+            print(f"Discovery error: {e}")
 
     def download_single_mp3(self, url, call_id):
         filename = os.path.join(self.download_dir, f'recording_{call_id}.mp3')
@@ -132,14 +138,31 @@ Pull out the products mentioned. Give results as JSON only: {json.dumps(response
         # (Simplified for now, will implement full version)
         pass
 
-    def execute_pipeline(self, queue_id, master_outlet_id, brand_name):
+    def execute_pipeline(self, task):
+        queue_id = task['id']
+        master_outlet_id = task['master_outlet_id']
+        brand_name = task['brand_name']
+        
+        # Configuration
+        sample_size = task.get('sample_size', 500)
+        min_duration = task.get('min_duration', 0)
+        start_date = task.get('start_date')
+        end_date = task.get('end_date')
+
         try:
             self.update_queue_status(queue_id, status='processing', stage='fetching_calls')
             
-            # 1. Fetch Calls
-            calls = CustomerCallRecordingsRepository.check_sample_calls_exist(master_outlet_id)
+            # 1. Fetch Calls with filters
+            calls = CustomerCallRecordingsRepository.check_sample_calls_exist(
+                master_outlet_id, 
+                sample_size=sample_size,
+                min_duration=min_duration,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
             if not calls:
-                self.update_queue_status(queue_id, status='failed', error_message='No sample calls found')
+                self.update_queue_status(queue_id, status='failed', error_message='No sample calls found matching criteria')
                 return
 
             df_calls = pd.DataFrame(calls)
@@ -195,19 +218,25 @@ Pull out the products mentioned. Give results as JSON only: {json.dumps(response
 
     def run_worker(self):
         """Worker loop to process queue"""
+        print("Worker starting...")
         while True:
-            # First, discover new brands
-            self.discover_and_queue()
-            
-            # Find next pending task
-            conn = get_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM automated_processing_queue WHERE status = 'pending' ORDER BY created_at LIMIT 1")
-            task = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            
-            if task:
-                self.execute_pipeline(task['id'], task['master_outlet_id'], task['brand_name'])
-            else:
-                time.sleep(10) # Wait for new tasks
+            try:
+                # First, discover new brands
+                self.discover_and_queue()
+                
+                # Find next pending task
+                conn = get_connection()
+                cursor = conn.cursor(dictionary=True, buffered=True)
+                cursor.execute("SELECT * FROM automated_processing_queue WHERE status = 'pending' ORDER BY created_at LIMIT 1")
+                task = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                
+                if task:
+                    print(f"Processing task {task['id']} for brand {task['brand_name']}")
+                    self.execute_pipeline(task)
+                else:
+                    time.sleep(10) # Wait for new tasks
+            except Exception as e:
+                print(f"Worker loop error: {e}")
+                time.sleep(10) # Wait before retry if loop fails

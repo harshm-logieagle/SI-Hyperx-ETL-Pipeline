@@ -82,7 +82,7 @@ header {
 }
 
 .btn-secondary:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .section-header {
@@ -131,11 +131,30 @@ td {
     text-transform: uppercase;
 }
 
-.status-pending { background: rgba(234, 179, 8, 0.2); color: #eab308; }
-.status-processing { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.status-completed { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
-.status-failed { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-.status-review_pending { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+.status-pending {
+    background: rgba(234, 179, 8, 0.2);
+    color: #eab308;
+}
+
+.status-processing {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.status-completed {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.status-failed {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.status-review_pending {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+}
 
 /* Modal Styles */
 .modal {
@@ -146,7 +165,7 @@ td {
     top: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(8px);
 }
 
@@ -183,7 +202,7 @@ td {
 
 textarea {
     width: 100%;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
     border: 1px solid var(--glass-border);
     border-radius: 12px;
     padding: 1rem;
@@ -198,9 +217,168 @@ textarea {
     gap: 1rem;
 }
 
+/* Configuration Section */
+.config-section {
+    margin-bottom: 3rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+}
+
+.search-container {
+    padding: 1rem;
+    position: relative;
+}
+
+.search-box {
+    position: relative;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+#brand-search {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: white;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+#brand-search:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.search-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #1e1b4b;
+    border: 1px solid var(--glass-border);
+    border-radius: 0 0 12px 12px;
+    z-index: 100;
+    max-height: 250px;
+    overflow-y: auto;
+    display: none;
+}
+
+.search-result-item {
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.search-result-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.config-form {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-top: 1rem;
+}
+
+.brand-info-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.brand-info-banner span:first-child {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.form-group input {
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: white;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
 .modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
     margin-top: 2rem;
+}
+
+/* Managed Section */
+.managed-section {
+    margin-top: 3rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 24px;
+    border: 1px solid var(--glass-border);
+}
+
+.sm-filter {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    color: white;
+    width: 250px;
+}
+
+.action-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+}
+
+.status-active {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.status-missing {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
 }

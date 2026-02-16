@@ -14,6 +14,10 @@ def create_tables():
         stage VARCHAR(100),
         result_json LONGTEXT,
         error_message TEXT,
+        sample_size INT DEFAULT 500,
+        min_duration INT DEFAULT 0,
+        start_date DATE,
+        end_date DATE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )

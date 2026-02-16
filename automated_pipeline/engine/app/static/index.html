@@ -1,27 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Automated Pipeline Manager | Visionary AI</title>
+    <title>Automated Pipeline Manager | Clustering AI</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </head>
+
 <body>
     <div class="glass-container">
         <header>
             <div class="logo">
                 <i class="fas fa-microchip"></i>
-                <h1>Visionary AI <span>Pipeline</span></h1>
+                <h1>Clustering AI <span>Pipeline</span></h1>
             </div>
             <div class="actions">
-                <button id="discover-btn" class="btn btn-secondary"><i class="fas fa-search"></i> Discover Brands</button>
+                <button id="discover-btn" class="btn btn-secondary"><i class="fas fa-search"></i> Auto Discover</button>
                 <button id="start-worker-btn" class="btn btn-primary"><i class="fas fa-play"></i> Start Worker</button>
             </div>
         </header>
 
         <main>
+            <section class="config-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-plus-circle"></i> Add Brand for Processing</h2>
+                </div>
+                <div class="search-container glass">
+                    <div class="search-box">
+                        <input type="text" id="brand-search" placeholder="Search Brand Name...">
+                        <div id="search-results" class="search-results-dropdown"></div>
+                    </div>
+
+                    <div id="brand-config-form" class="config-form" style="display: none;">
+                        <div class="brand-info-banner">
+                            <span id="selected-brand-name">Brand Name</span>
+                            <span id="cluster-status-badge" class="badge">Checking...</span>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Sample Size (No. of calls)</label>
+                                <input type="number" id="config-sample-size" value="500">
+                            </div>
+                            <div class="form-group">
+                                <label>Min Duration (seconds)</label>
+                                <input type="number" id="config-min-duration" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Date Range (Start)</label>
+                                <input type="date" id="config-start-date">
+                            </div>
+                            <div class="form-group">
+                                <label>Date Range (End)</label>
+                                <input type="date" id="config-end-date">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button id="add-to-queue-btn" class="btn btn-primary">Add to Queue</button>
+                            <button id="cancel-config-btn" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
             <section class="queue-section">
                 <div class="section-header">
                     <h2><i class="fas fa-stream"></i> Processing Queue</h2>
@@ -44,47 +88,72 @@
                         </tbody>
                     </table>
                 </div>
-            </section>
-
-            <!-- Preview Modal -->
-            <div id="preview-modal" class="modal">
-                <div class="modal-content glass">
-                    <div class="modal-header">
-                        <h2 id="modal-brand-name">Brand Name Details</h2>
-                        <span class="close">&times;</span>
-                    </div>
-                    <div class="modal-body">
-                        <div id="editor-container">
-                             <!-- JSON Editor or Form -->
-                             <div class="editor-section">
-                                <h3>Product Hierarchy</h3>
-                                <textarea id="product-hierarchy-editor" rows="10"></textarea>
-                             </div>
-                             <div class="editor-row">
-                                <div class="editor-section">
-                                    <h3>Complaint Reasons</h3>
-                                    <textarea id="complaint-reasons-editor" rows="5"></textarea>
-                                </div>
-                                <div class="editor-section">
-                                    <h3>Enquiry Reasons</h3>
-                                    <textarea id="enquiry-reasons-editor" rows="5"></textarea>
-                                </div>
-                                <div class="editor-section">
-                                    <h3>Request Reasons</h3>
-                                    <textarea id="request-reasons-editor" rows="5"></textarea>
-                                </div>
-                             </div>
+                <section class="managed-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-tasks"></i> Brand Cluster Management</h2>
+                        <div class="filter-controls">
+                            <input type="text" id="brand-manage-filter" placeholder="Filter brands..."
+                                class="sm-filter">
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button id="save-btn" class="btn btn-secondary">Save Changes</button>
-                        <button id="approve-btn" class="btn btn-primary">Approve & Store</button>
+                    <div class="table-container">
+                        <table id="managed-table">
+                            <thead>
+                                <tr>
+                                    <th>Brand</th>
+                                    <th>Outlet ID</th>
+                                    <th>Cluster Status</th>
+                                    <th>Last Clustered</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="managed-body">
+                                <!-- Items will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Preview Modal -->
+                <div id="preview-modal" class="modal">
+                    <div class="modal-content glass">
+                        <div class="modal-header">
+                            <h2 id="modal-brand-name">Brand Name Details</h2>
+                            <span class="close">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div id="editor-container">
+                                <!-- JSON Editor or Form -->
+                                <div class="editor-section">
+                                    <h3>Product Hierarchy</h3>
+                                    <textarea id="product-hierarchy-editor" rows="10"></textarea>
+                                </div>
+                                <div class="editor-row">
+                                    <div class="editor-section">
+                                        <h3>Complaint Reasons</h3>
+                                        <textarea id="complaint-reasons-editor" rows="5"></textarea>
+                                    </div>
+                                    <div class="editor-section">
+                                        <h3>Enquiry Reasons</h3>
+                                        <textarea id="enquiry-reasons-editor" rows="5"></textarea>
+                                    </div>
+                                    <div class="editor-section">
+                                        <h3>Request Reasons</h3>
+                                        <textarea id="request-reasons-editor" rows="5"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="save-btn" class="btn btn-secondary">Save Changes</button>
+                            <button id="approve-btn" class="btn btn-primary">Approve & Store</button>
+                        </div>
                     </div>
                 </div>
-            </div>
         </main>
     </div>
 
     <script src="app.js"></script>
 </body>
+
 </html>
