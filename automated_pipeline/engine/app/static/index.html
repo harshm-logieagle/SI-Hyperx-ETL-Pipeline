@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Pipeline Manager | Visionary AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="glass-container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-microchip"></i>
+                <h1>Visionary AI <span>Pipeline</span></h1>
+            </div>
+            <div class="actions">
+                <button id="discover-btn" class="btn btn-secondary"><i class="fas fa-search"></i> Discover Brands</button>
+                <button id="start-worker-btn" class="btn btn-primary"><i class="fas fa-play"></i> Start Worker</button>
+            </div>
+        </header>
+
+        <main>
+            <section class="queue-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-stream"></i> Processing Queue</h2>
+                    <span id="queue-count" class="badge">0 Brands</span>
+                </div>
+                <div class="table-container">
+                    <table id="queue-table">
+                        <thead>
+                            <tr>
+                                <th>Brand</th>
+                                <th>Outlet ID</th>
+                                <th>Status</th>
+                                <th>Stage</th>
+                                <th>Created At</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queue-body">
+                            <!-- Items will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Preview Modal -->
+            <div id="preview-modal" class="modal">
+                <div class="modal-content glass">
+                    <div class="modal-header">
+                        <h2 id="modal-brand-name">Brand Name Details</h2>
+                        <span class="close">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div id="editor-container">
+                             <!-- JSON Editor or Form -->
+                             <div class="editor-section">
+                                <h3>Product Hierarchy</h3>
+                                <textarea id="product-hierarchy-editor" rows="10"></textarea>
+                             </div>
+                             <div class="editor-row">
+                                <div class="editor-section">
+                                    <h3>Complaint Reasons</h3>
+                                    <textarea id="complaint-reasons-editor" rows="5"></textarea>
+                                </div>
+                                <div class="editor-section">
+                                    <h3>Enquiry Reasons</h3>
+                                    <textarea id="enquiry-reasons-editor" rows="5"></textarea>
+                                </div>
+                                <div class="editor-section">
+                                    <h3>Request Reasons</h3>
+                                    <textarea id="request-reasons-editor" rows="5"></textarea>
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="save-btn" class="btn btn-secondary">Save Changes</button>
+                        <button id="approve-btn" class="btn btn-primary">Approve & Store</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
