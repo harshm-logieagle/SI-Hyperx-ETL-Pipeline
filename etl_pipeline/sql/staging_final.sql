@@ -673,7 +673,7 @@ CREATE TABLE call_product_mention_tags (
 );
 
 INSERT INTO call_product_mention_tags (
-    call_product_mention_id,
+    call_product_mentions_id,
     tags
 )
 SELECT 
