@@ -599,6 +599,67 @@ INNER JOIN master_outlet_products mop
     AND mop.category_id = moc.id
     AND mop.master_outlet_id = cra.master_outlet_id;
 
+-- Supported with TiDB
+INSERT INTO call_product_mentions (
+    call_recording_analytics_id,
+    master_outlet_product_id,
+    master_outlet_id,
+    outlet_id,
+    call_recording_id,
+    product_sentiment,
+    product_verbatim,
+    tags
+)
+SELECT
+    tr.id,
+    mop.id,
+    tr.master_outlet_id,
+    tr.outlet_id,
+    tr.call_recording_id,
+    tr.sentiment,
+    tr.verbatim,
+    tr.tags
+FROM (
+    SELECT
+        pr.id, pr.master_outlet_id, pr.outlet_id, pr.call_recording_id,
+        pr.p_name, pr.p_category, pr.sentiment, pr.verbatim,
+        JSON_UNQUOTE(JSON_EXTRACT(pr.tags_arr, CONCAT('$[', tag_n.n, ']'))) AS tags
+    FROM (
+        SELECT
+            cra.id, cra.master_outlet_id, cra.outlet_id, cra.call_recording_id,
+            JSON_UNQUOTE(JSON_EXTRACT(cra.products_mentioned_json, CONCAT('$[', prod_n.n, '].product')))           AS p_name,
+            JSON_UNQUOTE(JSON_EXTRACT(cra.products_mentioned_json, CONCAT('$[', prod_n.n, '].category')))          AS p_category,
+            JSON_UNQUOTE(JSON_EXTRACT(cra.products_mentioned_json, CONCAT('$[', prod_n.n, '].product_sentiment'))) AS sentiment,
+            JSON_UNQUOTE(JSON_EXTRACT(cra.products_mentioned_json, CONCAT('$[', prod_n.n, '].product_verbatim')))  AS verbatim,
+            JSON_EXTRACT(cra.products_mentioned_json,             CONCAT('$[', prod_n.n, '].tags'))                AS tags_arr
+        FROM call_recording_analytics cra
+        INNER JOIN (
+            SELECT (a.n + b.n * 10) AS n
+            FROM (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+                  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a
+            CROSS JOIN
+                 (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+                  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) b
+        ) prod_n ON prod_n.n < JSON_LENGTH(cra.products_mentioned_json)
+    ) pr
+    INNER JOIN (
+        SELECT (a.n + b.n * 10) AS n
+        FROM (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+              UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a
+        CROSS JOIN
+             (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+              UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) b
+    ) tag_n ON tag_n.n < JSON_LENGTH(pr.tags_arr)
+) tr
+INNER JOIN master_outlet_categories moc
+    ON  tr.p_category COLLATE utf8mb4_unicode_ci = moc.category_name COLLATE utf8mb4_unicode_ci
+    AND moc.master_outlet_id = tr.master_outlet_id
+INNER JOIN master_outlet_products mop
+    ON  tr.p_name     COLLATE utf8mb4_unicode_ci = mop.name           COLLATE utf8mb4_unicode_ci
+    AND mop.category_id      = moc.id
+    AND mop.master_outlet_id = tr.master_outlet_id
+LIMIT 100;
+
 -- Normalized table (child)
 CREATE TABLE call_product_mention_tags (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -763,6 +824,36 @@ CROSS JOIN JSON_TABLE(
 ) AS jt
 JOIN emotions_master em ON jt.emotion_name COLLATE utf8mb4_unicode_ci = em.name COLLATE utf8mb4_unicode_ci;
 
+-- Supported with TiDB
+INSERT INTO call_analytics_emotions (
+    call_recording_analytics_id,
+    master_outlet_id,
+    outlet_id,
+    call_recording_id,
+    emotion_id,
+    emotion_verbatim
+)
+SELECT
+    cra.id,
+    cra.master_outlet_id,
+    cra.outlet_id,
+    cra.call_recording_id,
+    em.id,
+    JSON_UNQUOTE(JSON_EXTRACT(cra.emotions_json, CONCAT('$[', n.n, '].emotion_verbatim'))) AS verbatim
+FROM call_recording_analytics cra
+INNER JOIN (
+    SELECT (a.n + b.n * 10) AS n
+    FROM
+        (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+         UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a
+    CROSS JOIN
+        (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+         UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) b
+) n ON n.n < JSON_LENGTH(cra.emotions_json)
+INNER JOIN emotions_master em
+    ON JSON_UNQUOTE(JSON_EXTRACT(cra.emotions_json, CONCAT('$[', n.n, '].emotion'))) COLLATE utf8mb4_unicode_ci
+     = em.name COLLATE utf8mb4_unicode_ci;
+
 -- 11. Decision Nodes
 CREATE TABLE IF NOT EXISTS decision_nodes (
 	id INT AUTO_INCREMENT PRIMARY KEY,
@@ -807,19 +898,35 @@ create table level_reasons (
 
 
 set foreign_key_checks=0;
-truncate table decision_nodes;
-truncate table level_reasons;
-truncate table product_hierarchy_raw;
-truncate table customer_call_record_logs_raw;
-truncate table call_recording_analytics_details_raw;
-truncate table call_analytics_emotions;
-truncate table call_product_mentions;
-truncate table call_reasons;
-truncate table call_recording_analytics;
-truncate table customer_call_recordings;
-truncate table master_outlet_call_reasons;
-truncate table master_outlet_categories;
-truncate table master_outlet_products;
-truncate table outlets;
-truncate table outlets_raw;
-truncate table brands;
+TRUNCATE TABLE decision_nodes;
+TRUNCATE TABLE level_reasons;
+TRUNCATE TABLE product_hierarchy_raw;
+TRUNCATE TABLE customer_call_record_logs_raw;
+TRUNCATE TABLE call_recording_analytics_details_raw;
+TRUNCATE TABLE call_analytics_emotions;
+TRUNCATE TABLE call_product_mentions;
+TRUNCATE TABLE call_reasons;
+TRUNCATE TABLE call_recording_analytics;
+TRUNCATE TABLE customer_call_recordings;
+TRUNCATE TABLE master_outlet_call_reasons;
+TRUNCATE TABLE master_outlet_categories;
+TRUNCATE TABLE master_outlet_products;
+TRUNCATE TABLE outlets;
+TRUNCATE TABLE outlets_raw;
+TRUNCATE TABLE brands;
+
+set foreign_key_checks=0;
+DROP TABLE decision_nodes;
+DROP TABLE level_reasons;
+DROP TABLE call_analytics_emotions;
+DROP TABLE call_product_mentions;
+DROP TABLE call_product_mention_tags;
+DROP TABLE emotions_master;
+DROP TABLE call_reasons;
+DROP TABLE call_recording_analytics;
+DROP TABLE customer_call_recordings;
+DROP TABLE master_outlet_call_reasons;
+DROP TABLE master_outlet_categories;
+DROP TABLE master_outlet_products;
+DROP TABLE outlets;
+DROP TABLE brands;
