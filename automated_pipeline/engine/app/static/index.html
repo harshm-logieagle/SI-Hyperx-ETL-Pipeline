@@ -7,7 +7,10 @@
     <title>Automated Pipeline Manager | Clustering AI</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
 
 <body>
@@ -23,7 +26,19 @@
             </div>
         </header>
 
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="pipeline">
+                <i class="fas fa-microchip"></i> Pipeline
+            </button>
+            <button class="tab-btn" data-tab="excel-push">
+                <i class="fas fa-file-excel"></i> Pushing via Excel
+            </button>
+        </nav>
+
         <main>
+            <!-- ===== TAB: Pipeline ===== -->
+            <div id="tab-pipeline" class="tab-panel active">
             <section class="config-section">
                 <div class="section-header">
                     <h2><i class="fas fa-plus-circle"></i> Add Brand for Processing</h2>
@@ -66,7 +81,7 @@
                     </div>
                 </div>
             </section>
-            <section class="queue-section">
+            <section class="queue-section" id="pipeline-queue-section">
                 <div class="section-header">
                     <h2><i class="fas fa-stream"></i> Processing Queue</h2>
                     <span id="queue-count" class="badge">0 Brands</span>
@@ -150,6 +165,140 @@
                         </div>
                     </div>
                 </div>
+            </section><!-- /queue-section -->
+            </div><!-- /tab-pipeline -->
+            <!-- ===== END TAB: Pipeline ===== -->
+
+            <!-- ===== TAB: Pushing via Excel ===== -->
+            <div id="tab-excel-push" class="tab-panel">
+                <section class="config-section excel-push-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-file-excel"></i> Query Configuration</h2>
+                    </div>
+
+                    <div class="config-form excel-query-form">
+                        <div class="form-grid form-grid-3">
+                            <!-- Select2: Master Outlet ID (fetched from API) -->
+                            <div class="form-group">
+                                <label for="excel-master-outlet-id">Master Outlet ID</label>
+                                <select id="excel-master-outlet-id">
+                                    <option></option>
+                                </select>
+                            </div>
+
+                            <!-- Tag input: Outlet IDs (comma-separated with chips) -->
+                            <div class="form-group">
+                                <label>Outlet ID</label>
+                                <div class="tag-input-wrapper" id="outlet-tag-wrapper">
+                                    <div id="outlet-tags" class="outlet-tags-area"></div>
+                                    <input type="text" id="outlet-tag-input" placeholder="Type ID &amp; press Enter or ,">
+                                </div>
+                                <input type="hidden" id="excel-outlet-id">
+                            </div>
+
+                            <!-- Select2: State (static Indian states) -->
+                            <div class="form-group">
+                                <label for="excel-state">State</label>
+                                <select id="excel-state">
+                                    <option></option>
+                                    <option>Andhra Pradesh</option>
+                                    <option>Arunachal Pradesh</option>
+                                    <option>Assam</option>
+                                    <option>Bihar</option>
+                                    <option>Chhattisgarh</option>
+                                    <option>Goa</option>
+                                    <option>Gujarat</option>
+                                    <option>Haryana</option>
+                                    <option>Himachal Pradesh</option>
+                                    <option>Jharkhand</option>
+                                    <option>Karnataka</option>
+                                    <option>Kerala</option>
+                                    <option>Madhya Pradesh</option>
+                                    <option>Maharashtra</option>
+                                    <option>Manipur</option>
+                                    <option>Meghalaya</option>
+                                    <option>Mizoram</option>
+                                    <option>Nagaland</option>
+                                    <option>Odisha</option>
+                                    <option>Punjab</option>
+                                    <option>Rajasthan</option>
+                                    <option>Sikkim</option>
+                                    <option>Tamil Nadu</option>
+                                    <option>Telangana</option>
+                                    <option>Tripura</option>
+                                    <option>Uttar Pradesh</option>
+                                    <option>Uttarakhand</option>
+                                    <option>West Bengal</option>
+                                    <option>Delhi</option>
+                                    <option>Chandigarh</option>
+                                    <option>Jammu and Kashmir</option>
+                                    <option>Ladakh</option>
+                                    <option>Puducherry</option>
+                                </select>
+                            </div>
+
+                            <!-- Select2: City (populated via API / state change) -->
+                            <div class="form-group">
+                                <label for="excel-city">City</label>
+                                <select id="excel-city">
+                                    <option></option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="excel-from-date">From Date</label>
+                                <input type="date" id="excel-from-date">
+                            </div>
+                            <div class="form-group">
+                                <label for="excel-to-date">To Date</label>
+                                <input type="date" id="excel-to-date">
+                            </div>
+                            <div class="form-group">
+                                <label for="excel-num-records">No. of Call Records</label>
+                                <input type="number" id="excel-num-records" placeholder="e.g. 1000" min="1">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button id="excel-reset-btn" class="btn btn-secondary">
+                                <i class="fas fa-undo"></i> Reset
+                            </button>
+                            <button id="excel-run-btn" class="btn btn-primary">
+                                <i class="fas fa-play"></i> Run Query
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            <!-- ===== Excel Push: Jobs Status ===== -->
+                <section class="excel-jobs-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-satellite-dish"></i> Push Jobs</h2>
+                        <span id="excel-jobs-count" class="badge">0 Jobs</span>
+                    </div>
+                    <div class="table-container">
+                        <table id="excel-jobs-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Master Outlet ID</th>
+                                    <th>Status</th>
+                                    <th>Stage / Progress</th>
+                                    <th>Records</th>
+                                    <th>Started</th>
+                                </tr>
+                            </thead>
+                            <tbody id="excel-jobs-body">
+                                <tr id="excel-jobs-empty-row">
+                                    <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">
+                                        No push jobs yet. Configure and click <strong>Run Query</strong> to start one.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+            <!-- ===== END TAB: Pushing via Excel ===== -->
         </main>
     </div>
 

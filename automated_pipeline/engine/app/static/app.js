@@ -309,4 +309,254 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Poll queue every 5 seconds
     setInterval(fetchQueue, 5000);
+
+    // ===== Tab Switching =====
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // ===== Select2 Initialisation =====
+    const s2Opts = (placeholder, ajaxUrl = null) => {
+        const opts = {
+            placeholder,
+            allowClear: true,
+            dropdownParent: $('#tab-excel-push'),
+            width: '100%',
+        };
+        if (ajaxUrl) {
+            opts.minimumInputLength = 1;
+            opts.ajax = {
+                url: ajaxUrl,
+                dataType: 'json',
+                delay: 300,
+                data: params => ({ q: params.term }),
+                processResults: data => ({
+                    results: data.map(d => ({ id: d.id ?? d, text: d.name ?? d }))
+                }),
+            };
+        }
+        return opts;
+    };
+
+    // Master outlet ID — free-text (tags mode) so user can type any numeric ID
+    $('#excel-master-outlet-id').select2({
+        placeholder: 'Type master outlet ID…',
+        allowClear: true,
+        tags: true,
+        dropdownParent: $('#tab-excel-push'),
+        width: '100%',
+        createTag: params => ({ id: params.term.trim(), text: params.term.trim(), newTag: true }),
+    });
+    $('#excel-state').select2(s2Opts('Select state…'));
+    // City — free-text (tags mode) so user can type any city name
+    $('#excel-city').select2({
+        placeholder: 'Type city name…',
+        allowClear: true,
+        tags: true,
+        dropdownParent: $('#tab-excel-push'),
+        width: '100%',
+        createTag: params => ({ id: params.term.trim(), text: params.term.trim(), newTag: true }),
+    });
+
+    // ===== Outlet ID Tag Input =====
+    const tagWrapper   = document.getElementById('outlet-tag-wrapper');
+    const tagsArea     = document.getElementById('outlet-tags');
+    const tagTextInput = document.getElementById('outlet-tag-input');
+    const hiddenOutlet = document.getElementById('excel-outlet-id');
+    let outletTags     = [];
+
+    function renderOutletTags() {
+        tagsArea.innerHTML = '';
+        outletTags.forEach((tag, i) => {
+            const chip = document.createElement('span');
+            chip.className = 'outlet-chip';
+            chip.innerHTML = `${tag}<button type="button" class="chip-remove" title="Remove">&times;</button>`;
+            chip.querySelector('.chip-remove').addEventListener('click', () => {
+                outletTags.splice(i, 1);
+                renderOutletTags();
+            });
+            tagsArea.appendChild(chip);
+        });
+        hiddenOutlet.value = outletTags.join(',');
+    }
+
+    function addOutletTag(raw) {
+        raw.split(',').map(v => v.trim()).filter(Boolean).forEach(v => {
+            if (!outletTags.includes(v)) outletTags.push(v);
+        });
+        renderOutletTags();
+    }
+
+    tagTextInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const val = tagTextInput.value.replace(/,$/, '').trim();
+            if (val) addOutletTag(val);
+            tagTextInput.value = '';
+        } else if (e.key === 'Backspace' && tagTextInput.value === '' && outletTags.length) {
+            outletTags.pop();
+            renderOutletTags();
+        }
+    });
+
+    tagTextInput.addEventListener('paste', e => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        addOutletTag(pasted);
+        tagTextInput.value = '';
+    });
+
+    // Clicking anywhere in the wrapper focuses the text input
+    tagWrapper.addEventListener('click', () => tagTextInput.focus());
+
+    // ===== Excel Push: Reset Button =====
+    document.getElementById('excel-reset-btn').addEventListener('click', () => {
+        $('#excel-master-outlet-id').val(null).trigger('change');
+        $('#excel-state').val(null).trigger('change');
+        $('#excel-city').val(null).trigger('change');
+        outletTags = [];
+        renderOutletTags();
+        tagTextInput.value = '';
+        ['excel-from-date', 'excel-to-date', 'excel-num-records'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+    });
+
+    // ===== Excel Push: Run Query Button =====
+    document.getElementById('excel-run-btn').addEventListener('click', async () => {
+        const masterId = $('#excel-master-outlet-id').val();
+        if (!masterId) {
+            alert('Please enter a Master Outlet ID before running the query.');
+            return;
+        }
+
+        const config = {
+            master_outlet_id: masterId,
+            outlet_ids:  document.getElementById('excel-outlet-id').value || null,
+            state:       $('#excel-state').val() || null,
+            city:        $('#excel-city').val() || null,
+            from_date:   document.getElementById('excel-from-date').value || null,
+            to_date:     document.getElementById('excel-to-date').value || null,
+            num_records: parseInt(document.getElementById('excel-num-records').value) || 200000,
+        };
+
+        const runBtn = document.getElementById('excel-run-btn');
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+
+        try {
+            const resp = await fetch('/api/excel-push/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config),
+            });
+            const result = await resp.json();
+            if (resp.ok) {
+                fetchExcelPushJobs();   // immediate refresh
+            } else {
+                alert('Failed to start push job: ' + (result.detail || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Network error: ' + e.message);
+        } finally {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<i class="fas fa-play"></i> Run Query';
+        }
+    });
+
+    // ===== Excel Push: Jobs Table =====
+    let excelJobsHasActive = false;   // drives polling frequency
+    let excelJobsPollTimer = null;
+
+    function excelJobStatusClass(status) {
+        return {
+            pending:   'status-pending',
+            running:   'status-processing',
+            completed: 'status-completed',
+            failed:    'status-failed',
+        }[status] || 'status-pending';
+    }
+
+    function renderExcelPushJobs(jobs) {
+        const tbody = document.getElementById('excel-jobs-body');
+        const countBadge = document.getElementById('excel-jobs-count');
+
+        if (!jobs || jobs.length === 0) {
+            tbody.innerHTML = `<tr id="excel-jobs-empty-row">
+                <td colspan="6" style="text-align:center; color:var(--text-muted); padding:2rem;">
+                    No push jobs yet. Configure and click <strong>Run Query</strong> to start one.
+                </td></tr>`;
+            countBadge.textContent = '0 Jobs';
+            return;
+        }
+
+        countBadge.textContent = `${jobs.length} Job${jobs.length !== 1 ? 's' : ''}`;
+        excelJobsHasActive = jobs.some(j => j.status === 'running' || j.status === 'pending');
+
+        tbody.innerHTML = jobs.map(job => {
+            const total  = job.total_records  || 0;
+            const pushed = job.pushed_records || 0;
+            const pct    = total > 0 ? Math.round((pushed / total) * 100) : (job.status === 'completed' ? 100 : 0);
+
+            const progressBar = `
+                <div class="push-progress-wrap">
+                    <div class="push-progress-track">
+                        <div class="push-progress-fill ${job.status === 'failed' ? 'push-progress-fail' : ''}"
+                             style="width:${pct}%"></div>
+                    </div>
+                    <span class="push-progress-label">${
+                        job.status === 'completed'
+                            ? `${pushed.toLocaleString()} pushed`
+                            : total > 0
+                                ? `${pushed.toLocaleString()} / ${total.toLocaleString()}`
+                                : '—'
+                    }</span>
+                </div>`;
+
+            const outletDisplay = job.outlet_ids
+                ? job.outlet_ids.split(',').slice(0, 3).join(', ') + (job.outlet_ids.split(',').length > 3 ? '…' : '')
+                : '—';
+
+            return `<tr>
+                <td style="font-size:0.8rem;color:var(--text-muted)">#${job.id}</td>
+                <td>
+                    <strong>${job.master_outlet_id}</strong>
+                    ${outletDisplay !== '—' ? `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:3px">Outlets: ${outletDisplay}</div>` : ''}
+                </td>
+                <td><span class="status-badge ${excelJobStatusClass(job.status)}">${job.status}</span></td>
+                <td style="font-size:0.82rem;color:var(--text-muted);max-width:260px">${job.stage || '—'}</td>
+                <td style="min-width:180px">${progressBar}</td>
+                <td style="font-size:0.78rem;color:var(--text-muted)">${job.created_at.split('.')[0]}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function fetchExcelPushJobs() {
+        try {
+            const resp = await fetch('/api/excel-push/jobs');
+            const jobs = await resp.json();
+            renderExcelPushJobs(jobs);
+        } catch (e) {
+            console.error('fetchExcelPushJobs error:', e);
+        }
+    }
+
+    function scheduleExcelJobsPoll() {
+        clearTimeout(excelJobsPollTimer);
+        // Poll every 2 s when a job is active, 10 s otherwise
+        const delay = excelJobsHasActive ? 2000 : 10000;
+        excelJobsPollTimer = setTimeout(async () => {
+            await fetchExcelPushJobs();
+            scheduleExcelJobsPoll();
+        }, delay);
+    }
+
+    // Initial load + start adaptive polling
+    fetchExcelPushJobs();
+    scheduleExcelJobsPoll();
 });

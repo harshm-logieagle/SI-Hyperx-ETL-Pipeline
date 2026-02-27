@@ -212,5 +212,49 @@ def start_worker(background_tasks: BackgroundTasks):
     background_tasks.add_task(executor.run_worker)
     return {"message": "Worker started"}
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Excel Push  (Pushing via Excel tab)
+# ──────────────────────────────────────────────────────────────────────────────
+
+from app.services.excel_push_service import ExcelPushService
+from app.repositories.excel_push_repo import ExcelPushRepository
+
+excel_pusher = ExcelPushService()
+
+
+class ExcelPushRequest(BaseModel):
+    master_outlet_id: str
+    outlet_ids: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+    num_records: int = 200000
+
+
+@app.post("/api/excel-push/run")
+def excel_push_run(data: ExcelPushRequest, background_tasks: BackgroundTasks):
+    """Create a push job record then execute it in the background."""
+    config = data.dict()
+    job_id = ExcelPushRepository.create_job(config)
+    background_tasks.add_task(excel_pusher.run_push_job, job_id, config)
+    return {"message": "Push job started", "job_id": job_id}
+
+
+@app.get("/api/excel-push/jobs")
+def excel_push_jobs():
+    """Return all push jobs (most recent first)."""
+    return ExcelPushRepository.get_all_jobs()
+
+
+@app.get("/api/excel-push/jobs/{job_id}")
+def excel_push_job(job_id: int):
+    """Return a single push job by ID."""
+    job = ExcelPushRepository.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
 # Serve frontend
 app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
