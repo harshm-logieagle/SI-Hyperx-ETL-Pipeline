@@ -12,3 +12,5 @@ call_analytics/recordings/
 *.mp3
 *.wav
 automated_pipeline/automated_clustering_pipeline.ipynb
+*.log
+config.py
