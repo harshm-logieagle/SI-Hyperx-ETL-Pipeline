@@ -5,7 +5,7 @@ CREATE TABLE `brands` (
   `brand_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `industry` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.outlets definition
 
@@ -184,7 +184,7 @@ CREATE TABLE `outlets` (
   `api_phone_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_outlets_eacs_id` (`enterprise_actual_client_store_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1914 DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- staging_final.master_outlet_categories definition
 
@@ -195,7 +195,7 @@ CREATE TABLE `master_outlet_categories` (
   PRIMARY KEY (`id`),
   KEY `fk_categories_brands_id` (`master_outlet_id`),
   CONSTRAINT `fk_categories_brands_id` FOREIGN KEY (`master_outlet_id`) REFERENCES `brands` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.master_outlet_products definition
 
@@ -226,7 +226,7 @@ CREATE TABLE `master_outlet_call_reasons` (
   KEY `fk_mocr_outlets` (`outlet_id`),
   CONSTRAINT `fk_mocr_brands` FOREIGN KEY (`master_outlet_id`) REFERENCES `brands` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_mocr_outlets` FOREIGN KEY (`outlet_id`) REFERENCES `outlets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=784 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.customer_call_recordings definition
 
@@ -286,7 +286,7 @@ CREATE TABLE `customer_call_recordings` (
   PRIMARY KEY (`id`),
   KEY `idx_ccr_uuid` (`call_uuid`),
   KEY `idx_ccr_date` (`call_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=1001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.call_recording_analytics definition
 
@@ -329,7 +329,7 @@ CREATE TABLE `call_recording_analytics` (
   PRIMARY KEY (`id`),
   KEY `idx_cra_sentiment` (`overall_sentiment`),
   KEY `idx_cra_reason` (`reason`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.call_product_mentions definition
 
@@ -354,7 +354,7 @@ CREATE TABLE `call_product_mentions` (
   CONSTRAINT `fk_product_mentions_outlet_id` FOREIGN KEY (`outlet_id`) REFERENCES `outlets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_product_mentions_outlet_products_id` FOREIGN KEY (`master_outlet_product_id`) REFERENCES `master_outlet_products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_product_mentions_rec_analytics_id` FOREIGN KEY (`call_recording_analytics_id`) REFERENCES `call_recording_analytics` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.call_product_mention_tags definition
 
@@ -365,7 +365,7 @@ CREATE TABLE `call_product_mention_tags` (
   PRIMARY KEY (`id`),
   KEY `fk_call_product_mention_tags_call_product_mentions_id` (`call_product_mentions_id`),
   CONSTRAINT `fk_call_product_mention_tags_call_product_mentions_id` FOREIGN KEY (`call_product_mentions_id`) REFERENCES `call_product_mentions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.call_reasons definition
 
@@ -388,7 +388,7 @@ CREATE TABLE `call_reasons` (
   CONSTRAINT `fk_call_reasons_master_outlet_id` FOREIGN KEY (`master_outlet_id`) REFERENCES `brands` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_call_reasons_outlet_id` FOREIGN KEY (`outlet_id`) REFERENCES `outlets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_call_reasons_rec_analytics_id` FOREIGN KEY (`call_recording_analytics_id`) REFERENCES `call_recording_analytics` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.emotions_master definition
 
@@ -397,7 +397,7 @@ CREATE TABLE `emotions_master` (
   `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.call_analytics_emotions definition
 
@@ -420,7 +420,7 @@ CREATE TABLE `call_analytics_emotions` (
   CONSTRAINT `fk_call_analytics_emotions_master_outlet_id` FOREIGN KEY (`master_outlet_id`) REFERENCES `brands` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_call_analytics_emotions_outlet_id` FOREIGN KEY (`outlet_id`) REFERENCES `outlets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_call_analytics_emotions_rec_analytics_id` FOREIGN KEY (`call_recording_analytics_id`) REFERENCES `call_recording_analytics` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.decision_nodes definition
 
@@ -437,7 +437,7 @@ CREATE TABLE `decision_nodes` (
   KEY `fk_decision_nodes_parent_id` (`parent_id`),
   CONSTRAINT `fk_decision_nodes_mo_id` FOREIGN KEY (`master_outlet_id`) REFERENCES `brands` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_decision_nodes_parent_id` FOREIGN KEY (`parent_id`) REFERENCES `decision_nodes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- staging_final.level_reasons definition
 
@@ -453,7 +453,7 @@ CREATE TABLE `level_reasons` (
   KEY `fk_level_reasons_call_recording_id` (`call_recording_id`),
   CONSTRAINT `fk_level_reasons_call_recording_id` FOREIGN KEY (`call_recording_id`) REFERENCES `customer_call_recordings` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_level_reasons_master_outlet_id` FOREIGN KEY (`master_outlet_id`) REFERENCES `brands` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
 
