@@ -6,9 +6,9 @@ CREATE TABLE brands (
 );
 
 INSERT INTO brands (
-	brand_name
+	brand_name, sinterface_id
 )
-SELECT brand_name FROM outlets_raw WHERE outlet_type = 'master';
+SELECT brand_name, id FROM outlets_raw WHERE outlet_type = 'master';
 
 -- 1. Outlets table to get (outlet_id)
 CREATE TABLE outlets (
@@ -191,6 +191,8 @@ CREATE TABLE outlets (
 		on update cascade	
 );
 
+ALTER TABLE outlets ADD INDEX idx_outlets_outlet_raw_id (outlet_raw_id);
+
 INSERT INTO outlets (
     master_outlet_id,
     business_name, url_alias, joiningplan_id, order_planid, customer_id, partner_id, salesperson_id, order_id, category_id, alternative_name, business_email, 
@@ -253,7 +255,7 @@ WHERE c.outlet_type IN ('retail','enterprise');
 create table master_outlet_categories (
 	id INT auto_increment primary key,
 	master_outlet_id INT,
-	category_name VARCHAR(255),
+	category_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 	constraint fk_categories_brands_id
 		foreign key (master_outlet_id)
 		references brands(id)
@@ -277,9 +279,9 @@ create table master_outlet_products (
 	id INT auto_increment primary key,
 	master_outlet_id INT,
 	outlet_id INT,
-	name VARCHAR(200),
-	embedding TEXT,
-	description TEXT,
+	name VARCHAR(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	embedding TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 	category_id INT,
     CONSTRAINT fk_products_brands_id
         FOREIGN KEY (master_outlet_id)
@@ -313,22 +315,25 @@ join master_outlet_categories moc on phr.category COLLATE utf8mb4_unicode_ci = m
 CREATE TABLE IF NOT EXISTS master_outlet_call_reasons (
     id INT AUTO_INCREMENT PRIMARY KEY,
     master_outlet_id INT NOT NULL,
-    outlet_id INT,
-    type VARCHAR(50),
-    value VARCHAR(255), 
+    type VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    value VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL, 
     CONSTRAINT fk_mocr_brands FOREIGN KEY (master_outlet_id) REFERENCES brands(id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_mocr_outlets FOREIGN KEY (outlet_id) REFERENCES outlets(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-INSERT INTO master_outlet_call_reasons (master_outlet_id, outlet_id, type, value)
-SELECT DISTINCT 
-    o.master_outlet_id,
-    o.id,
-    raw.reason_type,
-    raw.reason
-FROM call_recording_analytics_details_raw raw
-JOIN outlets o ON raw.outlet_id = o.outlet_raw_id
-WHERE raw.reason IS NOT NULL;
+INSERT INTO master_outlet_call_reasons (value, master_outlet_id, type)
+SELECT raw.reason,
+       raw.master_outlet_id,
+       raw.reason_type
+FROM call_recording_analytics_details raw
+JOIN outlets o 
+    ON raw.outlet_id = o.outlet_raw_id
+WHERE raw.reason IS NOT NULL
+AND raw.id = (
+    SELECT MAX(r2.id)
+    FROM call_recording_analytics_details r2
+    WHERE r2.reason = raw.reason
+);
 
 -- 5. Customer Call Recordings
 CREATE TABLE IF NOT EXISTS customer_call_recordings (
@@ -336,57 +341,59 @@ CREATE TABLE IF NOT EXISTS customer_call_recordings (
     master_outlet_id INT NOT NULL,
     outlet_id INT NOT NULL,
     call_record_raw_id INT, 
-    caller_number VARCHAR(20),
-    called_number VARCHAR(20),
-    agent_number VARCHAR(20),
+    caller_number VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    called_number VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    agent_number VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     call_date DATE,
-    call_time VARCHAR(255),
+    call_time VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     call_date_time DATETIME,
     call_start_time DATETIME,
     call_end_time DATETIME,
     call_duration TIME,
     total_durations TIME,
-    call_status VARCHAR(50),
-    call_uuid VARCHAR(150),
-    call_recording_url VARCHAR(250),
-    publisher_type VARCHAR(25),
-    request_variable MEDIUMTEXT,
-    response_variable MEDIUMTEXT,
-    Branch VARCHAR(300),
-    CustomerType VARCHAR(300),
-    answerd_by VARCHAR(300),
+    call_status VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    call_uuid VARCHAR(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    call_recording_url VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    publisher_type VARCHAR(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    request_variable MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    response_variable MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    Branch VARCHAR(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    CustomerType VARCHAR(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    answerd_by VARCHAR(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     modified DATETIME,
-    ivr_type VARCHAR(50),
-    waybeo_unique_call_id VARCHAR(50),
-    called_client_store_id VARCHAR(50),
-    waybeo_callid VARCHAR(50),
-    answered_by VARCHAR(50),
+    ivr_type VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    waybeo_unique_call_id VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    called_client_store_id VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    waybeo_callid VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    answered_by VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     ivr_duration TIME,
     ring_duration TIME,
     lead_send_to_crm TINYINT DEFAULT 0,
-    call_type VARCHAR(255),
-    transfer_status VARCHAR(45),
-    destination_number VARCHAR(45),
+    call_type VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    transfer_status VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    destination_number VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     count_of_sale_query TINYINT,
     count_of_service_query TINYINT,
-    is_new_customer VARCHAR(45),
-    dealer_code VARCHAR(45),
-    dealer_type VARCHAR(50),
-    virtual_number VARCHAR(45),
-    locality VARCHAR(45),
-    am VARCHAR(45),
-    rsm VARCHAR(45),
-    city VARCHAR(45),
-    state VARCHAR(45),
-    hangup_leg VARCHAR(45),
-    key_press VARCHAR(45),
-    call_record_language VARCHAR(100),
-    call_language_api_response MEDIUMTEXT,
+    is_new_customer VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    dealer_code VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    dealer_type VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    virtual_number VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    locality VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    am VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    rsm VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    city VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    state VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    hangup_leg VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    key_press VARCHAR(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    call_record_language VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    call_language_api_response MEDIUMTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     is_caller_notified TINYINT(1) DEFAULT 0,
     CONSTRAINT fk_ccr_brands FOREIGN KEY (master_outlet_id) REFERENCES brands(id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_ccr_outlets FOREIGN KEY (outlet_id) REFERENCES outlets(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+ALTER TABLE customer_call_recordings ADD INDEX idx_ccr_call_record_raw_id (call_record_raw_id);
 
 INSERT INTO customer_call_recordings (
     master_outlet_id, 
@@ -429,32 +436,32 @@ CREATE TABLE IF NOT EXISTS call_recording_analytics (
     is_webhook TINYINT DEFAULT 0,
     analytic_type TINYINT,
     text_status TINYINT,
-    reason VARCHAR(255),
-    reason_verbatim TEXT,
-    audio_to_text TEXT,
-    reason_type VARCHAR(255),
-    end_of_call_status VARCHAR(250),
-    call_language VARCHAR(50),
-    customer_gender VARCHAR(50),
-    customer_type VARCHAR(50),
-    overall_sentiment VARCHAR(50),
-    summary TEXT,
+    reason VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    reason_verbatim TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    audio_to_text TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    reason_type VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    end_of_call_status VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    call_language VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    customer_gender VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    customer_type VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    overall_sentiment VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    summary TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     is_valid_transcript TINYINT(1) DEFAULT 0,
-    transcript LONGTEXT,
-    emotions VARCHAR(500),
-    emotion_verbatims TEXT,
+    transcript LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    emotions VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    emotion_verbatims TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     emotions_json JSON,
-    products TEXT,
-    product_sentiments TEXT,
-    product_verbatims TEXT,
-    product_tags TEXT,
-    product_categories TEXT,
+    products TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    product_sentiments TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    product_verbatims TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    product_tags TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    product_categories TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     products_mentioned_json JSON,
-    l0_reason VARCHAR(255),
-    l1_reason VARCHAR(255),
-    l2_reason VARCHAR(255),
-    l3_reason VARCHAR(255),
-    brand_sentiment VARCHAR(255),
+    l0_reason VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    l1_reason VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    l2_reason VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    l3_reason VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    brand_sentiment VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     created DATETIME,
     modified DATETIME,
     CONSTRAINT fk_cra_call_rec FOREIGN KEY (call_recording_id) REFERENCES customer_call_recordings(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -529,9 +536,9 @@ create table call_product_mentions (
     master_outlet_id INT,
     outlet_id INT,
     call_recording_id INT,
-	product_sentiment VARCHAR(250),
-	product_verbatim VARCHAR(250),
-	tags VARCHAR(250),
+	product_sentiment VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	product_verbatim VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	tags VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     CONSTRAINT fk_product_mentions_rec_analytics_id
         FOREIGN KEY (call_recording_analytics_id)
         REFERENCES call_recording_analytics(id)
@@ -664,7 +671,7 @@ LIMIT 100;
 CREATE TABLE call_product_mention_tags (
     id INT AUTO_INCREMENT PRIMARY KEY,
     call_product_mentions_id INT,
-    tags VARCHAR(250),
+    tags VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     CONSTRAINT fk_call_product_mention_tags_call_product_mentions_id
         FOREIGN KEY (call_product_mentions_id)
         REFERENCES call_product_mentions(id)
@@ -697,7 +704,7 @@ create table call_reasons (
     master_outlet_id INT,
     outlet_id INT,
     call_recording_id INT,
-	reason_verbatim TEXT,
+	reason_verbatim TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     CONSTRAINT fk_call_reasons_rec_analytics_id
         FOREIGN KEY (call_recording_analytics_id)
         REFERENCES call_recording_analytics(id)
@@ -751,8 +758,8 @@ JOIN master_outlet_call_reasons mocr
 -- 9. Emotions Master
 CREATE TABLE IF NOT EXISTS emotions_master (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(50),
-    `description` VARCHAR(255)
+    `name` VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    `description` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 );
 
 INSERT INTO 
@@ -771,7 +778,7 @@ CREATE TABLE IF NOT EXISTS call_analytics_emotions (
     outlet_id INT,
     call_recording_id INT,
     emotion_id INT,
-    emotion_verbatim VARCHAR(500),
+    emotion_verbatim VARCHAR(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     CONSTRAINT fk_call_analytics_emotions_rec_analytics_id
         FOREIGN KEY (call_recording_analytics_id)
         REFERENCES call_recording_analytics(id)
@@ -860,8 +867,8 @@ CREATE TABLE IF NOT EXISTS decision_nodes (
 	master_outlet_id INT,
 	parent_id INT DEFAULT NULL,
 	node_type ENUM('classification', 'extraction'),
-	label VARCHAR(100),
-	description TEXT,
+	label VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 	is_active TINYINT,
 	CONSTRAINT fk_decision_nodes_mo_id
 		FOREIGN KEY (master_outlet_id)
@@ -881,8 +888,8 @@ create table level_reasons (
 	master_outlet_id INT,
 	call_recording_id INT,
     path_id INT,
-	level VARCHAR(10),
-	value VARCHAR(250),
+	level VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	value VARCHAR(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 	constraint fk_level_reasons_master_outlet_id
 	foreign key (master_outlet_id)
 	references brands(id)
