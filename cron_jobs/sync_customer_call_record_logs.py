@@ -1,0 +1,296 @@
+"""
+Cron Job: Sync customer_call_record_logs
+Source DB: SI LIVE DB (sinterface) — customer_call_record_logs table
+Target DB: 10.0.4.194 (test_singleinterface_hyperx) — customer_call_record_logs table
+
+Sync Logic:
+1. Get last_inserted_id from cron_tracker (source='customer_call_record_logs', target='customer_call_record_logs').
+2. Fetch rows with id > last_inserted_id from source in batches (keyset pagination).
+3. INSERT IGNORE into target (id-based dedup — append-only sync).
+4. Checkpoint last_inserted_id in cron_tracker atomically after each batch.
+5. Stamp last_sync_time in cron_tracker on full completion.
+"""
+
+import mysql.connector
+from mysql.connector import Error, OperationalError, DatabaseError, InterfaceError
+import logging
+import time
+import sys
+from contextlib import contextmanager
+from datetime import datetime, timezone
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("sync_customer_call_record_logs.log", encoding="utf-8"),
+    ],
+)
+logger = logging.getLogger("SYNC_CCRL")
+
+SOURCE_DB_CONFIG = {
+    "host": "live-si-db.c83fh8gbkqpw.ap-south-1.rds.amazonaws.com",
+    "port": 3306,
+    "user": "siddant",
+    "password": "v&G8gbU<d+.6AT_=f4:iOu(T6pEiOZOxPmk6JeWePKjNKmrAwrC5x^!XNft",
+    "database": "sinterface",
+    "autocommit": True,
+    "use_pure": True,
+    "connection_timeout": 30,
+}
+
+TARGET_DB_CONFIG = {
+    "host": "10.0.4.194",
+    "port": 4000,
+    "user": "ai-team",
+    "password": r"Zx4%shaU67&1@3slftyst",
+    "database": "test_singleinterface_hyperx",
+    "autocommit": False,
+    "use_pure": True,
+    "connection_timeout": 30,
+}
+
+BATCH_SIZE    = 1000
+MAX_RETRIES   = 3
+RETRY_BACKOFF = 2  # seconds (exponential backoff base)
+
+SYNC_TABLE    = "cron_tracker"
+SOURCE_TABLE  = "customer_call_record_logs"
+TARGET_TABLE  = "customer_call_record_logs"
+
+_COLUMNS = [
+    "id", "master_outlet_id", "outlet_id", "caller_number", "called_number",
+    "agent_number", "call_date", "call_time", "call_date_time", "call_start_time",
+    "call_end_time", "call_duration", "total_durations", "call_status", "call_uuid",
+    "call_recording_url", "publisher_type", "request_variable", "response_variable",
+    "Branch", "CustomerType", "answerd_by", "created", "modified", "ivr_type",
+    "waybeo_unique_call_id", "called_client_store_id", "waybeo_callid", "answered_by",
+    "ivr_duration", "ring_duration", "lead_send_to_crm", "call_type",
+    "transfer_status", "destination_number", "count_of_sale_query",
+    "count_of_service_query", "is_new_customer", "dealer_code", "dealer_type",
+    "virtual_number", "locality", "am", "rsm", "city", "state", "hangup_leg",
+    "key_press", "call_record_language", "call_language_api_response",
+    "is_caller_notified",
+]
+
+_COLS_SQL     = ", ".join(f"`{c}`" for c in _COLUMNS)
+_PLACEHOLDERS = ", ".join(["%s"] * len(_COLUMNS))
+
+_FETCH_QUERY = (
+    f"SELECT {_COLS_SQL} FROM `{SOURCE_TABLE}` "
+    f"WHERE id > %s ORDER BY id ASC LIMIT %s"
+)
+
+_INSERT_QUERY = (
+    f"INSERT IGNORE INTO `{TARGET_TABLE}` ({_COLS_SQL}) "
+    f"VALUES ({_PLACEHOLDERS})"
+)
+
+
+# ── Connection context managers ───────────────────────────────────────────────
+
+@contextmanager
+def get_source_connection():
+    conn = None
+    try:
+        conn = mysql.connector.connect(**SOURCE_DB_CONFIG)
+        logger.info("Source DB connection established.")
+        yield conn
+    except Error as e:
+        logger.critical(f"Failed to connect to source DB: {e}")
+        raise
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+            logger.info("Source DB connection closed.")
+
+
+@contextmanager
+def get_target_connection():
+    conn = None
+    try:
+        conn = mysql.connector.connect(**TARGET_DB_CONFIG)
+        logger.info("Target DB connection established.")
+        yield conn
+    except Error as e:
+        logger.critical(f"Failed to connect to target DB: {e}")
+        raise
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+            logger.info("Target DB connection closed.")
+
+
+# ── Tracker helpers ───────────────────────────────────────────────────────────
+
+def get_sync_state(cursor) -> tuple:
+    """Returns (last_sync_time, last_inserted_id) for this job's cron_tracker row."""
+    cursor.execute(
+        f"SELECT last_sync_time, last_inserted_id FROM {SYNC_TABLE} "
+        f"WHERE source_table_name = %s AND target_table = %s LIMIT 1",
+        (SOURCE_TABLE, TARGET_TABLE),
+    )
+    row = cursor.fetchone()
+    if row:
+        last_sync_time   = row[0] if row[0] else datetime(2000, 1, 1)
+        last_inserted_id = row[1] if row[1] else 0
+        logger.info(f"Resuming: last_sync_time={last_sync_time}, last_inserted_id={last_inserted_id}.")
+        return last_sync_time, last_inserted_id
+    logger.info("No tracker row found — starting from id=0.")
+    return datetime(2000, 1, 1), 0
+
+
+def checkpoint_last_id(cursor, last_id: int) -> None:
+    """Persists last_inserted_id mid-run (called per batch, inside batch transaction)."""
+    cursor.execute(
+        f"INSERT INTO {SYNC_TABLE} "
+        f"(source_table_name, target_table, last_sync_time, last_inserted_id) "
+        f"VALUES (%s, %s, NULL, %s) "
+        f"ON DUPLICATE KEY UPDATE last_inserted_id = VALUES(last_inserted_id)",
+        (SOURCE_TABLE, TARGET_TABLE, last_id),
+    )
+
+
+def finalize_sync_time(cursor, sync_time: datetime) -> None:
+    """Stamps last_sync_time on full completion and resets last_inserted_id to 0."""
+    cursor.execute(
+        f"INSERT INTO {SYNC_TABLE} "
+        f"(source_table_name, target_table, last_sync_time, last_inserted_id) "
+        f"VALUES (%s, %s, %s, 0) "
+        f"ON DUPLICATE KEY UPDATE last_sync_time = VALUES(last_sync_time), "
+        f"last_inserted_id = 0",
+        (SOURCE_TABLE, TARGET_TABLE, sync_time),
+    )
+
+
+# ── Core sync function ────────────────────────────────────────────────────────
+
+def sync_customer_call_record_logs(src_conn, tgt_conn, resume_id: int = 0) -> int:
+    """
+    Fetches rows with id > resume_id from source and INSERT IGNOREs into target.
+    Checkpoints last_inserted_id in cron_tracker after each committed batch.
+    Returns total rows inserted.
+    """
+    src_cursor     = src_conn.cursor()
+    total_inserted = 0
+    last_id        = resume_id
+    batch_num      = 0
+
+    try:
+        while True:
+            batch_num += 1
+            src_cursor.execute(_FETCH_QUERY, (last_id, BATCH_SIZE))
+            rows = src_cursor.fetchall()
+            if not rows:
+                logger.info(f"No more rows after id={last_id}. Done.")
+                break
+
+            last_id    = rows[-1][0]
+            tgt_cursor = tgt_conn.cursor()
+            attempt    = 0
+
+            try:
+                while attempt < MAX_RETRIES:
+                    attempt += 1
+                    try:
+                        tgt_cursor.executemany(_INSERT_QUERY, rows)
+                        checkpoint_last_id(tgt_cursor, last_id)
+                        tgt_conn.commit()
+
+                        inserted = tgt_cursor.rowcount if tgt_cursor.rowcount >= 0 else len(rows)
+                        total_inserted += inserted
+                        logger.info(
+                            f"Batch {batch_num:04d} | "
+                            f"Fetched: {len(rows)}, Inserted: {inserted} | "
+                            f"Total: {total_inserted} | last_id={last_id}"
+                        )
+                        break
+
+                    except OperationalError as e:
+                        tgt_conn.rollback()
+                        logger.warning(
+                            f"Batch {batch_num:04d} | OperationalError "
+                            f"(attempt {attempt}/{MAX_RETRIES}): {e}"
+                        )
+                        if attempt < MAX_RETRIES:
+                            sleep_time = RETRY_BACKOFF ** attempt
+                            logger.info(f"Retrying in {sleep_time}s ...")
+                            time.sleep(sleep_time)
+                            if not tgt_conn.is_connected():
+                                tgt_conn.reconnect(attempts=3, delay=2)
+                                logger.info("Reconnected to target DB.")
+                        else:
+                            logger.error(
+                                f"Batch {batch_num:04d} | PERMANENTLY FAILED after "
+                                f"{MAX_RETRIES} attempts. Skipping {len(rows)} rows "
+                                f"(id range: {rows[0][0]}-{last_id})."
+                            )
+
+                    except DatabaseError as e:
+                        tgt_conn.rollback()
+                        logger.error(
+                            f"Batch {batch_num:04d} | DatabaseError (non-retriable): {e}. "
+                            f"Skipping {len(rows)} rows (id range: {rows[0][0]}-{last_id})."
+                        )
+                        break
+
+            finally:
+                tgt_cursor.close()
+
+    finally:
+        src_cursor.close()
+
+    return total_inserted
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def run_sync():
+    logger.info("=" * 65)
+    logger.info("SYNC JOB STARTED : customer_call_record_logs")
+    logger.info("=" * 65)
+
+    try:
+        with get_source_connection() as src_conn, get_target_connection() as tgt_conn:
+
+            with tgt_conn.cursor() as cur:
+                _, resume_id = get_sync_state(cur)
+
+            if resume_id:
+                logger.info(f"Resuming interrupted sync from id={resume_id}.")
+
+            current_sync_time = datetime.now(timezone.utc).replace(tzinfo=None)
+
+            total_inserted = sync_customer_call_record_logs(src_conn, tgt_conn, resume_id)
+
+            with tgt_conn.cursor() as cur:
+                finalize_sync_time(cur, current_sync_time)
+                tgt_conn.commit()
+                logger.info(f"cron_tracker updated with sync_time={current_sync_time}.")
+
+    except (OperationalError, InterfaceError) as e:
+        logger.critical(f"Critical connection failure: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logger.warning(
+            "Sync interrupted by user (Ctrl+C). "
+            "cron_tracker NOT finalized — re-run to resume."
+        )
+        sys.exit(0)
+    except Exception as e:
+        logger.critical(f"Unexpected error: {e}", exc_info=True)
+        sys.exit(1)
+
+    logger.info("=" * 65)
+    logger.info("SYNC JOB COMPLETED")
+    logger.info(f"  Total inserted : {total_inserted}")
+    logger.info("=" * 65)
+
+
+if __name__ == "__main__":
+    run_sync()
