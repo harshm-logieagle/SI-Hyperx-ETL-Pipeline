@@ -61,12 +61,12 @@ MAX_RETRIES   = 3
 RETRY_BACKOFF = 2       # Exponential backoff base (seconds)
 
 # Table names — swap to production names when done testing
-USERS_TABLE = "users_cron_test"
+USERS_TABLE = "users"
 SYNC_TABLE  = "cron_tracker"
 
 # Identifies this job's row in cron_tracker
 SYNC_SOURCE_TABLE = "users"
-SYNC_TARGET_TABLE = "users_cron_test"
+SYNC_TARGET_TABLE = "users"
 
 # Target users column order — drives INSERT and UPDATE query generation
 _USER_COLUMNS = [
