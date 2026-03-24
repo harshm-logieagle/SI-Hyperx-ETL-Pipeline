@@ -64,7 +64,8 @@ TARGET_DB_CONFIG = {
 # ── Configuration ──────────────────────────────────────────────────────────────
 
 # Add / remove master_outlet_ids here before running
-TARGET_OUTLET_IDS = [286487, 206309, 321091, 294333, 275470, 127035, 126696, 261121, 126712, 76409, 4844, 61535, 271756, 377407, 472433, 337572, 374460, 507806]  # TODO: set the master outlet ids here
+# TARGET_OUTLET_IDS = [286487, 206309, 321091, 294333, 275470, 127035, 126696, 261121, 126712, 76409, 4844, 61535, 271756, 377407, 472433, 337572, 374460, 507806]  # TODO: set the master outlet ids here
+TARGET_OUTLET_IDS = [206309]  # TODO: set the master outlet ids here
 
 BATCH_SIZE    = 1000
 MAX_RETRIES   = 3

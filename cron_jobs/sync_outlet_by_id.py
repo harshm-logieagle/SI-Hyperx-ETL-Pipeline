@@ -63,7 +63,7 @@ TARGET_DB_CONFIG = {
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 # The specific master outlet ID to sync — change this before running
-TARGET_OUTLET_ID = 507806  # TODO: set the master outlet id here
+TARGET_OUTLET_ID = 517132  # TODO: set the master outlet id here
 
 BATCH_SIZE    = 1000
 MAX_RETRIES   = 3
