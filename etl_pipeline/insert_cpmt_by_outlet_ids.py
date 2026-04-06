@@ -50,7 +50,7 @@ DB_CONFIG = {
 # ── Inputs ─────────────────────────────────────────────────────────────────────
 
 SI_MASTER_OUTLET_ID = 206309  # si_master_outlet_id value in brands table
-RESUME_ID           = 920612  # cpm.id to start from (exclusive)
+RESUME_ID           = 2037175  # cpm.id to start from (exclusive)
 
 BATCH_SIZE    = 1000
 MAX_RETRIES   = 3

@@ -51,9 +51,9 @@ DB_CONFIG = {
 # ── Inputs ─────────────────────────────────────────────────────────────────────
 
 SI_MASTER_OUTLET_ID = 206309  # si_master_outlet_id value in brands table
-RESUME_ID           = 1812133 # cra.call_recording_id to start from (exclusive)
+RESUME_ID           = 8181157 # cra.call_recording_id to start from (exclusive)
 
-BATCH_SIZE    = 500   # distinct call_recording_ids per batch (JSON expansion multiplies rows)
+BATCH_SIZE    = 1000   # distinct call_recording_ids per batch (JSON expansion multiplies rows)
 MAX_RETRIES   = 3
 RETRY_BACKOFF = 2     # seconds (exponential backoff base)
 
