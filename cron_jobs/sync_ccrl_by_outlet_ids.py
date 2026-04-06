@@ -172,24 +172,24 @@ def checkpoint_last_id(cursor, outlet_id: int, last_id: int) -> None:
     )
 
 
-def finalize_sync_time(cursor, outlet_id: int, sync_time: datetime) -> None:
-    """Stamps last_sync_time on full completion and resets last_inserted_id to 0."""
+def finalize_sync_time(cursor, outlet_id: int, sync_time: datetime, last_id: int) -> None:
+    """Stamps last_sync_time on full completion, preserving last_inserted_id so future runs are incremental."""
     cursor.execute(
         f"INSERT INTO {SYNC_TABLE} (source_table_name, target_table, last_sync_time, last_inserted_id) "
-        f"VALUES (%s, %s, %s, 0) "
-        f"ON DUPLICATE KEY UPDATE last_sync_time = VALUES(last_sync_time), last_inserted_id = 0",
-        (_sync_source_key(outlet_id), TARGET_TABLE, sync_time),
+        f"VALUES (%s, %s, %s, %s) "
+        f"ON DUPLICATE KEY UPDATE last_sync_time = VALUES(last_sync_time), last_inserted_id = VALUES(last_inserted_id)",
+        (_sync_source_key(outlet_id), TARGET_TABLE, sync_time, last_id),
     )
 
 
 # ── Core Sync Function ────────────────────────────────────────────────────────
 
-def sync_outlet(src_conn, tgt_conn, outlet_id: int, resume_id: int = 0) -> int:
+def sync_outlet(src_conn, tgt_conn, outlet_id: int, resume_id: int = 0) -> tuple[int, int]:
     """
     Fetches rows with master_outlet_id = outlet_id AND id > resume_id from source
     and INSERT IGNOREs into target in batches.
     Checkpoints last_inserted_id in custom_sync_tracking after each committed batch.
-    Returns total rows inserted.
+    Returns (total_rows_inserted, final_last_id).
     """
     src_cursor     = src_conn.cursor()
     total_inserted = 0
@@ -260,7 +260,7 @@ def sync_outlet(src_conn, tgt_conn, outlet_id: int, resume_id: int = 0) -> int:
     finally:
         src_cursor.close()
 
-    return total_inserted
+    return total_inserted, last_id
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -292,10 +292,10 @@ def run_sync():
                     if resume_id:
                         logger.info(f"[outlet={outlet_id}] Resuming interrupted sync from id={resume_id}.")
 
-                    total_inserted = sync_outlet(src_conn, tgt_conn, outlet_id, resume_id)
+                    total_inserted, final_last_id = sync_outlet(src_conn, tgt_conn, outlet_id, resume_id)
 
                     with tgt_conn.cursor() as cur:
-                        finalize_sync_time(cur, outlet_id, current_sync_time)
+                        finalize_sync_time(cur, outlet_id, current_sync_time, final_last_id)
                         tgt_conn.commit()
                         logger.info(f"[outlet={outlet_id}] custom_sync_tracking updated with sync_time={current_sync_time}.")
 
