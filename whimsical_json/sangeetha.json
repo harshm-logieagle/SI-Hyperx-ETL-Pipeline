@@ -1,6 +1,6 @@
 {
     "id": 1,
-    "outlet_id": 2,
+    "outlet_id": 1,
     "parent_id": null,
     "node_type": "classification",
     "label": "root",
@@ -9,7 +9,7 @@
     "children": [
         {
             "id": 2,
-            "outlet_id": 2,
+            "outlet_id": 1,
             "parent_id": 1,
             "node_type": "classification",
             "label": "In-Stock",
@@ -18,7 +18,7 @@
             "children": [
                 {
                     "id": 5,
-                    "outlet_id": 2,
+                    "outlet_id": 1,
                     "parent_id": 2,
                     "node_type": "extraction",
                     "label": "product",
@@ -27,7 +27,7 @@
                     "children": [
                         {
                             "id": 8,
-                            "outlet_id": 2,
+                            "outlet_id": 1,
                             "parent_id": 5,
                             "node_type": "extraction",
                             "label": "End of call status",
@@ -40,7 +40,7 @@
         },
         {
             "id": 3,
-            "outlet_id": 2,
+            "outlet_id": 1,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Out-of-Stock",
@@ -49,7 +49,7 @@
             "children": [
                 {
                     "id": 6,
-                    "outlet_id": 2,
+                    "outlet_id": 1,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "product",
@@ -58,7 +58,7 @@
                     "children": [
                         {
                             "id": 9,
-                            "outlet_id": 2,
+                            "outlet_id": 1,
                             "parent_id": 6,
                             "node_type": "extraction",
                             "label": "End of call status",
@@ -71,7 +71,7 @@
         },
         {
             "id": 4,
-            "outlet_id": 2,
+            "outlet_id": 1,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Others",
@@ -80,7 +80,7 @@
             "children": [
                 {
                     "id": 7,
-                    "outlet_id": 2,
+                    "outlet_id": 1,
                     "parent_id": 4,
                     "node_type": "extraction",
                     "label": "End of call status",

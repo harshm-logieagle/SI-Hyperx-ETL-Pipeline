@@ -1,6 +1,6 @@
 {
     "id": 1,
-    "outlet_id": 346970,
+    "outlet_id": 7,
     "parent_id": 1,
     "node_type": "classification",
     "label": "root",
@@ -9,7 +9,7 @@
     "children": [
         {
             "id": 2,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Options",
@@ -18,7 +18,7 @@
             "children": [
                 {
                     "id": 10,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 2,
                     "node_type": "extraction",
                     "label": "FNO",
@@ -27,7 +27,7 @@
                 },
                 {
                     "id": 11,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 2,
                     "node_type": "extraction",
                     "label": "Options",
@@ -36,7 +36,7 @@
                 },
                 {
                     "id": 12,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 2,
                     "node_type": "extraction",
                     "label": "Derivatives",
@@ -47,7 +47,7 @@
         },
         {
             "id": 3,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Commodity",
@@ -56,7 +56,7 @@
             "children": [
                 {
                     "id": 13,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "Commodity buy",
@@ -65,7 +65,7 @@
                 },
                 {
                     "id": 14,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "Commodity sell",
@@ -74,7 +74,7 @@
                 },
                 {
                     "id": 15,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "Algo trading",
@@ -83,7 +83,7 @@
                 },
                 {
                     "id": 16,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "Gold",
@@ -92,7 +92,7 @@
                 },
                 {
                     "id": 17,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "Silver",
@@ -101,7 +101,7 @@
                 },
                 {
                     "id": 18,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "Crude Oil",
@@ -110,7 +110,7 @@
                 },
                 {
                     "id": 19,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 3,
                     "node_type": "extraction",
                     "label": "Agri Commodity",
@@ -121,7 +121,7 @@
         },
         {
             "id": 4,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Intraday",
@@ -130,7 +130,7 @@
             "children": [
                 {
                     "id": 20,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 4,
                     "node_type": "extraction",
                     "label": "Intraday Equity",
@@ -139,7 +139,7 @@
                 },
                 {
                     "id": 21,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 4,
                     "node_type": "extraction",
                     "label": "Intraday",
@@ -148,7 +148,7 @@
                 },
                 {
                     "id": 22,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 4,
                     "node_type": "extraction",
                     "label": "Buy",
@@ -157,7 +157,7 @@
                 },
                 {
                     "id": 23,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 4,
                     "node_type": "extraction",
                     "label": "Sell",
@@ -168,7 +168,7 @@
         },
         {
             "id": 5,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Futures",
@@ -177,7 +177,7 @@
             "children": [
                 {
                     "id": 24,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 5,
                     "node_type": "extraction",
                     "label": "FNO",
@@ -186,7 +186,7 @@
                 },
                 {
                     "id": 25,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 5,
                     "node_type": "extraction",
                     "label": "Futures",
@@ -197,7 +197,7 @@
         },
         {
             "id": 6,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Delivery",
@@ -206,7 +206,7 @@
             "children": [
                 {
                     "id": 26,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 6,
                     "node_type": "extraction",
                     "label": "Equity",
@@ -217,7 +217,7 @@
         },
         {
             "id": 7,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "MTF",
@@ -226,7 +226,7 @@
             "children": [
                 {
                     "id": 27,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 7,
                     "node_type": "extraction",
                     "label": "Pay later",
@@ -235,7 +235,7 @@
                 },
                 {
                     "id": 28,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 7,
                     "node_type": "extraction",
                     "label": "Margin Trading Facility",
@@ -246,7 +246,7 @@
         },
         {
             "id": 8,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "Others",
@@ -255,7 +255,7 @@
             "children": [
                 {
                     "id": 29,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Order",
@@ -264,7 +264,7 @@
                 },
                 {
                     "id": 30,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Lot",
@@ -273,7 +273,7 @@
                 },
                 {
                     "id": 31,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "NIFTY",
@@ -282,7 +282,7 @@
                 },
                 {
                     "id": 32,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Trading",
@@ -291,7 +291,7 @@
                 },
                 {
                     "id": 33,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Demat",
@@ -300,7 +300,7 @@
                 },
                 {
                     "id": 34,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Account opening",
@@ -309,7 +309,7 @@
                 },
                 {
                     "id": 35,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Mutual Funds",
@@ -318,7 +318,7 @@
                 },
                 {
                     "id": 36,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "ETFs",
@@ -327,7 +327,7 @@
                 },
                 {
                     "id": 37,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Insurance",
@@ -336,7 +336,7 @@
                 },
                 {
                     "id": 38,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Loans and finance",
@@ -345,7 +345,7 @@
                 },
                 {
                     "id": 39,
-                    "outlet_id": 346970,
+                    "outlet_id": 7,
                     "parent_id": 8,
                     "node_type": "extraction",
                     "label": "Franchise and branch services",
@@ -356,7 +356,7 @@
         },
         {
             "id": 9,
-            "outlet_id": 346970,
+            "outlet_id": 7,
             "parent_id": 1,
             "node_type": "classification",
             "label": "No Products Were Mentioned",
