@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find '/d/Harsh/Projects-Working/SingleInterface - HyperX' -maxdepth 3 -type f \\\\\\(-name *.py -o -name .env* -o -name *.yml -o -name *.yaml \\\\\\) ! -path */.venv/* ! -path */__pycache__/*)"
+    ]
+  }
+}
