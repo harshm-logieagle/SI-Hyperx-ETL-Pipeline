@@ -62,8 +62,8 @@ MAX_RETRIES   = 3
 RETRY_BACKOFF = 2       # Exponential backoff base (seconds)
 
 # Table names — swap to production names when done testing
-BRANDS_TABLE  = "brands_cron_test"
-OUTLETS_TABLE = "outlets_cron_test"
+BRANDS_TABLE  = "brands"
+OUTLETS_TABLE = "outlets"
 SYNC_TABLE    = "cron_tracker"
 
 # Identifies this job's row in cron_tracker
@@ -169,9 +169,15 @@ def get_source_connection():
         logger.critical(f"Failed to connect to source DB: {e}")
         raise
     finally:
-        if conn and conn.is_connected():
-            conn.close()
-            logger.info("Source DB connection closed.")
+        # Avoid is_connected() here: it pings the server, which raises
+        # IndexError on a socket left in a bad state (e.g. after KeyboardInterrupt
+        # mid-query) and masks the original exception.
+        if conn is not None:
+            try:
+                conn.close()
+                logger.info("Source DB connection closed.")
+            except Exception as close_err:
+                logger.warning(f"Error while closing source DB connection: {close_err}")
 
 
 @contextmanager
@@ -185,9 +191,12 @@ def get_target_connection():
         logger.critical(f"Failed to connect to target DB: {e}")
         raise
     finally:
-        if conn and conn.is_connected():
-            conn.close()
-            logger.info("Target DB connection closed.")
+        if conn is not None:
+            try:
+                conn.close()
+                logger.info("Target DB connection closed.")
+            except Exception as close_err:
+                logger.warning(f"Error while closing target DB connection: {close_err}")
 
 
 # ── Sync Time Helpers ────────────────────────────────────────────────────────
@@ -211,13 +220,31 @@ def get_sync_state(cursor) -> tuple:
 
 
 def update_sync_time(cursor, sync_time: datetime) -> None:
-    """Called on full completion — persists last_sync_time and resets last_inserted_id."""
+    """Called on full completion — persists last_sync_time and resets last_inserted_id.
+
+    SELECT-then-UPDATE-or-INSERT: works without a unique key on
+    (source_table_name, target_table), avoiding duplicate rows when the
+    ON DUPLICATE KEY clause would otherwise silently insert.
+    """
     cursor.execute(
-        f"INSERT INTO {SYNC_TABLE} (source_table_name, target_table, last_sync_time, last_inserted_id) "
-        f"VALUES (%s, %s, %s, 0) "
-        f"ON DUPLICATE KEY UPDATE last_sync_time = VALUES(last_sync_time), last_inserted_id = 0",
-        (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE, sync_time),
+        f"SELECT 1 FROM {SYNC_TABLE} "
+        f"WHERE source_table_name = %s AND target_table = %s LIMIT 1",
+        (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE),
     )
+    if cursor.fetchone():
+        cursor.execute(
+            f"UPDATE {SYNC_TABLE} "
+            f"SET last_sync_time = %s, last_inserted_id = 0 "
+            f"WHERE source_table_name = %s AND target_table = %s",
+            (sync_time, SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE),
+        )
+    else:
+        cursor.execute(
+            f"INSERT INTO {SYNC_TABLE} "
+            f"(source_table_name, target_table, last_sync_time, last_inserted_id) "
+            f"VALUES (%s, %s, %s, 0)",
+            (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE, sync_time),
+        )
 
 
 # ── Core Sync Functions ──────────────────────────────────────────────────────
@@ -259,13 +286,26 @@ def sync_brands(src_conn, tgt_conn, last_sync_time: datetime) -> int:
             try:
                 fmt = ", ".join(["%s"] * len(source_ids))
                 tgt_cursor.execute(
-                    f"SELECT si_master_outlet_id FROM {BRANDS_TABLE} WHERE si_master_outlet_id IN ({fmt})",
+                    f"SELECT si_master_outlet_id, brand_name FROM {BRANDS_TABLE} "
+                    f"WHERE si_master_outlet_id IN ({fmt})",
                     source_ids,
                 )
-                existing_ids = {r[0] for r in tgt_cursor.fetchall()}
+                # Map source id → current target brand_name, so unchanged rows can be skipped.
+                # Post-migration, most rows will be identical; issuing UPDATEs for them is
+                # what stalled the fresh sync long enough to require a KeyboardInterrupt.
+                existing_map = {r[0]: r[1] for r in tgt_cursor.fetchall()}
 
-                to_insert = [(r[1], r[0]) for r in rows if r[0] not in existing_ids]
-                to_update = [(r[1], r[0]) for r in rows if r[0] in existing_ids]
+                to_insert  = []
+                to_update  = []
+                unchanged  = 0
+                for r in rows:
+                    source_id, brand_name = r[0], r[1]
+                    if source_id not in existing_map:
+                        to_insert.append((brand_name, source_id))
+                    elif existing_map[source_id] != brand_name:
+                        to_update.append((brand_name, source_id))
+                    else:
+                        unchanged += 1
 
                 attempt = 0
                 batch_succeeded = False
@@ -288,7 +328,8 @@ def sync_brands(src_conn, tgt_conn, last_sync_time: datetime) -> int:
                         total_upserted += upserted
                         logger.info(
                             f"Brands Batch {batch_num:04d} | "
-                            f"Inserted {len(to_insert)}, Updated {len(to_update)} | "
+                            f"Inserted {len(to_insert)}, Updated {len(to_update)}, "
+                            f"Unchanged (skipped) {unchanged} | "
                             f"Total upserted: {total_upserted}"
                         )
                         batch_succeeded = True
@@ -422,13 +463,28 @@ def cron_tracker(src_conn, tgt_conn, last_sync_time: datetime, resume_id: int = 
                             # Tuple layout for UPDATE: (master_outlet_id, …cols…, outlet_raw_id)
                             # First N-1 values → SET clause; last value → WHERE outlet_raw_id
                             tgt_cursor.executemany(UPDATE_OUTLET_QUERY, to_update)
-                        # Checkpoint: persist last_inserted_id atomically with batch data
+                        # Checkpoint: persist last_inserted_id atomically with batch data.
+                        # SELECT-then-UPDATE-or-INSERT: if a tracker row already exists for
+                        # this (source, target), just bump last_inserted_id; otherwise create it.
                         tgt_cursor.execute(
-                            f"INSERT INTO {SYNC_TABLE} (source_table_name, target_table, last_sync_time, last_inserted_id) "
-                            f"VALUES (%s, %s, NULL, %s) "
-                            f"ON DUPLICATE KEY UPDATE last_inserted_id = VALUES(last_inserted_id)",
-                            (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE, last_id),
+                            f"SELECT 1 FROM {SYNC_TABLE} "
+                            f"WHERE source_table_name = %s AND target_table = %s LIMIT 1",
+                            (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE),
                         )
+                        if tgt_cursor.fetchone():
+                            tgt_cursor.execute(
+                                f"UPDATE {SYNC_TABLE} "
+                                f"SET last_inserted_id = %s "
+                                f"WHERE source_table_name = %s AND target_table = %s",
+                                (last_id, SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE),
+                            )
+                        else:
+                            tgt_cursor.execute(
+                                f"INSERT INTO {SYNC_TABLE} "
+                                f"(source_table_name, target_table, last_sync_time, last_inserted_id) "
+                                f"VALUES (%s, %s, NULL, %s)",
+                                (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE, last_id),
+                            )
                         tgt_conn.commit()
                         upserted = len(to_insert) + len(to_update)
                         total_upserted += upserted

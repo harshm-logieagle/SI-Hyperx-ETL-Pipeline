@@ -72,6 +72,13 @@ import time
 import sys
 from contextlib import contextmanager
 
+from _etl_utils import (
+    install_crash_notifier,
+    notify_on_permanent_failure,
+)
+
+SCRIPT_NAME = "call_product_mentions"
+
 
 # ─────────────────────────────────────────────────────────
 # Logging Configuration
@@ -341,18 +348,38 @@ def insert_batch_with_checkpoint(
         last_cpm_id = result if result is not None else 0
 
         # ── Step 3: Upsert checkpoint ──────────────────────────────────
+        # SELECT-then-UPDATE-or-INSERT: works without a unique key on
+        # (source_table_name, target_table_name), and avoids the
+        # rows-changed vs rows-matched gotcha of relying on UPDATE rowcount.
         cursor.execute(
             """
-            INSERT INTO etl_checkpoints
-                (source_table_name, target_table_name,
-                 last_processed_id, last_processed_id_raw)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                last_processed_id     = VALUES(last_processed_id),
-                last_processed_id_raw = VALUES(last_processed_id_raw)
+            SELECT 1 FROM etl_checkpoints
+            WHERE  source_table_name = %s
+              AND  target_table_name = %s
             """,
-            (source_table, target_table, last_cpm_id, batch_max_id),
+            (source_table, target_table),
         )
+        if cursor.fetchone():
+            cursor.execute(
+                """
+                UPDATE etl_checkpoints
+                SET    last_processed_id     = %s,
+                       last_processed_id_raw = %s
+                WHERE  source_table_name = %s
+                  AND  target_table_name = %s
+                """,
+                (last_cpm_id, batch_max_id, source_table, target_table),
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO etl_checkpoints
+                    (source_table_name, target_table_name,
+                     last_processed_id, last_processed_id_raw)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (source_table, target_table, last_cpm_id, batch_max_id),
+            )
 
         # ── Step 4: Commit all atomically ─────────────────────────────
         conn.commit()
@@ -443,17 +470,38 @@ def run_etl():
                         f"(NULL JSON or empty tags) — advancing checkpoint."
                     )
                     with conn.cursor() as cur:
+                        # SELECT-then-UPDATE-or-INSERT: works without a unique
+                        # key on (source_table_name, target_table_name), and
+                        # avoids the rows-changed vs rows-matched gotcha of
+                        # relying on UPDATE rowcount.
                         cur.execute(
                             """
-                            INSERT INTO etl_checkpoints
-                                (source_table_name, target_table_name,
-                                 last_processed_id, last_processed_id_raw)
-                            VALUES (%s, %s, 0, %s)
-                            ON DUPLICATE KEY UPDATE
-                                last_processed_id_raw = VALUES(last_processed_id_raw)
+                            SELECT 1 FROM etl_checkpoints
+                            WHERE  source_table_name = %s
+                              AND  target_table_name = %s
                             """,
-                            (SOURCE_TABLE, TARGET_TABLE, batch_max_id),
+                            (SOURCE_TABLE, TARGET_TABLE),
                         )
+                        if cur.fetchone():
+                            cur.execute(
+                                """
+                                UPDATE etl_checkpoints
+                                SET    last_processed_id_raw = %s
+                                WHERE  source_table_name = %s
+                                  AND  target_table_name = %s
+                                """,
+                                (batch_max_id, SOURCE_TABLE, TARGET_TABLE),
+                            )
+                        else:
+                            cur.execute(
+                                """
+                                INSERT INTO etl_checkpoints
+                                    (source_table_name, target_table_name,
+                                     last_processed_id, last_processed_id_raw)
+                                VALUES (%s, %s, 0, %s)
+                                """,
+                                (SOURCE_TABLE, TARGET_TABLE, batch_max_id),
+                            )
                     conn.commit()
                     total_cra_processed += len(raw_ids)
                     last_id = batch_max_id
@@ -504,6 +552,10 @@ def run_etl():
                                 f"Skipping {len(rows)} rows "
                                 f"(last_id was {last_id})."
                             )
+                            notify_on_permanent_failure(
+                                SCRIPT_NAME, batch_num,
+                                (last_id, batch_max_id), len(rows), e,
+                            )
 
                     except DatabaseError as e:
                         total_failed += len(rows)
@@ -511,6 +563,10 @@ def run_etl():
                             f"Batch {batch_num:04d} | DatabaseError (non-retriable): {e}. "
                             f"Skipping {len(rows)} rows "
                             f"(last_id was {last_id})."
+                        )
+                        notify_on_permanent_failure(
+                            SCRIPT_NAME, batch_num,
+                            (last_id, batch_max_id), len(rows), e,
                         )
                         # Advance past the poisoned batch so the loop can continue
                         last_id = batch_max_id
@@ -545,4 +601,5 @@ def run_etl():
 
 
 if __name__ == "__main__":
+    install_crash_notifier(SCRIPT_NAME)
     run_etl()

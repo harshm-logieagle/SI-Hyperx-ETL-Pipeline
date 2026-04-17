@@ -11,6 +11,13 @@ import time
 import sys
 from contextlib import contextmanager
 
+from _etl_utils import (
+    install_crash_notifier,
+    notify_on_permanent_failure,
+)
+
+SCRIPT_NAME = "brands"
+
 # Logging Configuration
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -152,18 +159,38 @@ def insert_batch_with_checkpoint(
         last_brands_id = cursor.fetchone()[0]
 
         # ── Step 2: Upsert checkpoint (same transaction) ─
+        # SELECT-then-UPDATE-or-INSERT: works without a unique key on
+        # (source_table_name, target_table_name), and avoids the
+        # rows-changed vs rows-matched gotcha of relying on UPDATE rowcount.
         cursor.execute(
             """
-            INSERT INTO etl_checkpoints
-                (source_table_name, target_table_name,
-                 last_processed_id, last_processed_id_raw)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                last_processed_id     = VALUES(last_processed_id),
-                last_processed_id_raw = VALUES(last_processed_id_raw)
+            SELECT 1 FROM etl_checkpoints
+            WHERE  source_table_name = %s
+              AND  target_table_name = %s
             """,
-            (source_table, target_table, last_brands_id, new_last_raw_id),
+            (source_table, target_table),
         )
+        if cursor.fetchone():
+            cursor.execute(
+                """
+                UPDATE etl_checkpoints
+                SET    last_processed_id     = %s,
+                       last_processed_id_raw = %s
+                WHERE  source_table_name = %s
+                  AND  target_table_name = %s
+                """,
+                (last_brands_id, new_last_raw_id, source_table, target_table),
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO etl_checkpoints
+                    (source_table_name, target_table_name,
+                     last_processed_id, last_processed_id_raw)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (source_table, target_table, last_brands_id, new_last_raw_id),
+            )
 
         # ── Step 3: Commit both atomically ───────────────
         conn.commit()
@@ -205,9 +232,16 @@ def run_etl():
                 # only last_processed_id_raw (outlets_raw) drives keyset cursor
                 total_records  = get_total_count(cur)
 
+            if last_raw_id > 0:
+                logger.warning(
+                    f"Checkpoint already present (last_processed_id_raw = {last_raw_id}). "
+                    f"Skipping insert to prevent duplicates — ETL exiting."
+                )
+                return
+
             logger.info(
                 f"Source records (outlet_type='master') : {total_records} | "
-                f"Resuming from outlets_raw.id > {last_raw_id}"
+                f"Fresh run — processing all from outlets_raw.id > 0"
             )
 
             if total_records == 0:
@@ -271,6 +305,10 @@ def run_etl():
                                 f"Skipping {len(rows)} rows "
                                 f"(outlets_raw.id range: {rows[0][1]}–{new_last_raw_id})."
                             )
+                            notify_on_permanent_failure(
+                                SCRIPT_NAME, batch_num,
+                                (rows[0][1], new_last_raw_id), len(rows), e,
+                            )
 
                     except DatabaseError as e:
                         # Non-retriable: constraint violation, type mismatch, etc.
@@ -279,6 +317,10 @@ def run_etl():
                             f"Batch {batch_num:04d} | DatabaseError (non-retriable): {e}. "
                             f"Skipping {len(rows)} rows "
                             f"(outlets_raw.id range: {rows[0][1]}–{new_last_raw_id})."
+                        )
+                        notify_on_permanent_failure(
+                            SCRIPT_NAME, batch_num,
+                            (rows[0][1], new_last_raw_id), len(rows), e,
                         )
                         # Still advance cursor to avoid infinite loop on poisoned data
                         last_raw_id = new_last_raw_id
@@ -312,4 +354,5 @@ def run_etl():
 
 
 if __name__ == "__main__":
+    install_crash_notifier(SCRIPT_NAME)
     run_etl()

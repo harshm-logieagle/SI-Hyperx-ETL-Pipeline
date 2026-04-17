@@ -17,7 +17,7 @@ import logging
 import time
 import sys
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -146,25 +146,22 @@ def get_sync_state(cursor) -> tuple:
 
 
 def checkpoint_last_id(cursor, last_id: int) -> None:
-    """Persists last_inserted_id mid-run (called per batch, inside batch transaction)."""
+    """Updates last_inserted_id mid-run for this job's row only."""
     cursor.execute(
-        f"INSERT INTO {SYNC_TABLE} "
-        f"(source_table_name, target_table, last_sync_time, last_inserted_id) "
-        f"VALUES (%s, %s, NULL, %s) "
-        f"ON DUPLICATE KEY UPDATE last_inserted_id = VALUES(last_inserted_id)",
-        (SOURCE_TABLE, TARGET_TABLE, last_id),
+        f"UPDATE {SYNC_TABLE} SET last_inserted_id = %s "
+        f"WHERE source_table_name = %s AND target_table = %s",
+        (last_id, SOURCE_TABLE, TARGET_TABLE),
     )
 
 
-def finalize_sync_time(cursor, sync_time: datetime) -> None:
-    """Stamps last_sync_time on full completion and resets last_inserted_id to 0."""
+def finalize_sync(cursor) -> None:
+    """Resets last_inserted_id to 0 on full completion for this job's row only."""
     cursor.execute(
         f"INSERT INTO {SYNC_TABLE} "
-        f"(source_table_name, target_table, last_sync_time, last_inserted_id) "
-        f"VALUES (%s, %s, %s, 0) "
-        f"ON DUPLICATE KEY UPDATE last_sync_time = VALUES(last_sync_time), "
-        f"last_inserted_id = 0",
-        (SOURCE_TABLE, TARGET_TABLE, sync_time),
+        f"(source_table_name, target_table, last_inserted_id) "
+        f"VALUES (%s, %s, 0) "
+        f"ON DUPLICATE KEY UPDATE last_inserted_id = 0",
+        (SOURCE_TABLE, TARGET_TABLE),
     )
 
 
@@ -264,14 +261,12 @@ def run_sync():
             if resume_id:
                 logger.info(f"Resuming interrupted sync from id={resume_id}.")
 
-            current_sync_time = datetime.now(timezone.utc).replace(tzinfo=None)
-
             total_inserted = sync_customer_call_record_logs(src_conn, tgt_conn, resume_id)
 
             with tgt_conn.cursor() as cur:
-                finalize_sync_time(cur, current_sync_time)
+                finalize_sync(cur)
                 tgt_conn.commit()
-                logger.info(f"cron_tracker updated with sync_time={current_sync_time}.")
+                logger.info("cron_tracker finalized (last_inserted_id reset to 0).")
 
     except (OperationalError, InterfaceError) as e:
         logger.critical(f"Critical connection failure: {e}")

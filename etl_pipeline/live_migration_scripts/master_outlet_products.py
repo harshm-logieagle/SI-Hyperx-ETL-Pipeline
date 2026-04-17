@@ -23,6 +23,13 @@ import time
 import sys
 from contextlib import contextmanager
 
+from _etl_utils import (
+    install_crash_notifier,
+    notify_on_permanent_failure,
+)
+
+SCRIPT_NAME = "master_outlet_products"
+
 
 # ─────────────────────────────────────────────────────────
 # Logging Configuration
@@ -203,17 +210,37 @@ def insert_batch_with_checkpoint(
         last_mop_id = result if result is not None else 0
 
         # ── Step 3: Upsert checkpoint (same transaction) ──
+        # SELECT-then-UPDATE-or-INSERT: works without a unique key on
+        # (source_table_name, target_table_name), and avoids the
+        # rows-changed vs rows-matched gotcha of relying on UPDATE rowcount.
         cursor.execute(
             """
-            INSERT INTO etl_checkpoints
-                (source_table_name, target_table_name,
-                 last_processed_id, last_processed_id_raw)
-            VALUES (%s, %s, %s, 0)
-            ON DUPLICATE KEY UPDATE
-                last_processed_id = VALUES(last_processed_id)
+            SELECT 1 FROM etl_checkpoints
+            WHERE  source_table_name = %s
+              AND  target_table_name = %s
             """,
-            (source_table, target_table, last_mop_id),
+            (source_table, target_table),
         )
+        if cursor.fetchone():
+            cursor.execute(
+                """
+                UPDATE etl_checkpoints
+                SET    last_processed_id = %s
+                WHERE  source_table_name = %s
+                  AND  target_table_name = %s
+                """,
+                (last_mop_id, source_table, target_table),
+            )
+        else:
+            cursor.execute(
+                """
+                INSERT INTO etl_checkpoints
+                    (source_table_name, target_table_name,
+                     last_processed_id, last_processed_id_raw)
+                VALUES (%s, %s, %s, 0)
+                """,
+                (source_table, target_table, last_mop_id),
+            )
 
         # ── Step 4: Commit all atomically ─────────────────
         conn.commit()
@@ -326,6 +353,10 @@ def run_etl():
                                 f"Skipping {len(rows)} rows "
                                 f"(offset {offset} - {offset + len(rows)})."
                             )
+                            notify_on_permanent_failure(
+                                SCRIPT_NAME, batch_num,
+                                (offset, offset + len(rows)), len(rows), e,
+                            )
 
                     except DatabaseError as e:
                         total_failed += len(rows)
@@ -333,6 +364,10 @@ def run_etl():
                             f"Batch {batch_num:04d} | DatabaseError (non-retriable): {e}. "
                             f"Skipping {len(rows)} rows "
                             f"(offset {offset} - {offset + len(rows)})."
+                        )
+                        notify_on_permanent_failure(
+                            SCRIPT_NAME, batch_num,
+                            (offset, offset + len(rows)), len(rows), e,
                         )
                         offset += len(rows)     # Advance past poisoned batch
                         break
@@ -365,4 +400,5 @@ def run_etl():
 
 
 if __name__ == "__main__":
+    install_crash_notifier(SCRIPT_NAME)
     run_etl()

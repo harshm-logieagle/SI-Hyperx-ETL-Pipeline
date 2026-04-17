@@ -163,11 +163,11 @@ def get_sync_state(cursor) -> tuple:
 
 
 def update_sync_time(cursor, sync_time: datetime) -> None:
-    """Called on full completion — persists last_sync_time and resets last_inserted_id."""
+    """Called on full completion — persists last_sync_time for this job's row only."""
     cursor.execute(
-        f"INSERT INTO {SYNC_TABLE} (source_table_name, target_table, last_sync_time, last_inserted_id) "
-        f"VALUES (%s, %s, %s, 0) "
-        f"ON DUPLICATE KEY UPDATE last_sync_time = VALUES(last_sync_time), last_inserted_id = 0",
+        f"INSERT INTO {SYNC_TABLE} (source_table_name, target_table, last_sync_time) "
+        f"VALUES (%s, %s, %s) "
+        f"ON DUPLICATE KEY UPDATE last_sync_time = VALUES(last_sync_time)",
         (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE, sync_time),
     )
 
@@ -223,12 +223,11 @@ def sync_users(src_conn, tgt_conn, last_sync_time: datetime, resume_id: int = 0)
                             tgt_cursor.executemany(INSERT_USER_QUERY, to_insert)
                         if to_update:
                             tgt_cursor.executemany(UPDATE_USER_QUERY, to_update)
-                        # Checkpoint: persist last_inserted_id atomically with batch data
+                        # Checkpoint: update last_inserted_id for this job's row only
                         tgt_cursor.execute(
-                            f"INSERT INTO {SYNC_TABLE} (source_table_name, target_table, last_sync_time, last_inserted_id) "
-                            f"VALUES (%s, %s, NULL, %s) "
-                            f"ON DUPLICATE KEY UPDATE last_inserted_id = VALUES(last_inserted_id)",
-                            (SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE, last_id),
+                            f"UPDATE {SYNC_TABLE} SET last_inserted_id = %s "
+                            f"WHERE source_table_name = %s AND target_table = %s",
+                            (last_id, SYNC_SOURCE_TABLE, SYNC_TARGET_TABLE),
                         )
                         tgt_conn.commit()
                         upserted = len(to_insert) + len(to_update)
